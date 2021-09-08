@@ -15,8 +15,8 @@ Here you find the coding material for the workshop on **reinforcement learning a
 	2. RL + Race diffusion model
 
 * Examples
-  1. Fitting the DM on Ratcliff and Rouder (1998) data (group activity) with MLE
-  2. Fitting the RLDM on Fontanesi and colleagues (2019) data with hierarchical Bayesian estimation
+  1. Fitting the RLDM on Fontanesi and colleagues (2019) data with hierarchical Bayesian estimation
+  2. Fitting the DM on Ratcliff and Rouder (1998) data with MLE (group activity)
 
 ## Before starting
 

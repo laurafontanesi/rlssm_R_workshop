@@ -16,7 +16,7 @@
 <script src="site_libs/header-attrs-2.7/header-attrs.js"></script>
 <script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<link href="site_libs/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
 <script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
@@ -373,21 +373,21 @@ create_stimuli &lt;- function(n_trials, mean_1=12.375, mean_2=20.625, sd=6.1875)
 stimuli &lt;- create_stimuli(1000) # simulate 1000 trials (for example)
 summary(stimuli)</code></pre>
 <pre><code>##      dist1           dist2         source       strength     instruction 
-##  Min.   : 1.00   Min.   : 3.00   dark :514   11     : 61   accuracy:500  
-##  1st Qu.: 8.00   1st Qu.:16.00   light:486   15     : 59   speed   :500  
-##  Median :12.00   Median :20.00               16     : 57                 
-##  Mean   :12.32   Mean   :19.57               18     : 55                 
-##  3rd Qu.:16.00   3rd Qu.:24.00               12     : 49                 
-##  Max.   :31.00   Max.   :33.00               14     : 47                 
-##                                              (Other):672</code></pre>
+##  Min.   : 1.00   Min.   : 2.00   dark :525   16     : 61   accuracy:500  
+##  1st Qu.: 8.00   1st Qu.:16.00   light:475   14     : 60   speed   :500  
+##  Median :12.00   Median :20.00               17     : 59                 
+##  Mean   :12.41   Mean   :19.93               11     : 55                 
+##  3rd Qu.:16.00   3rd Qu.:24.00               15     : 52                 
+##  Max.   :32.00   Max.   :33.00               19     : 48                 
+##                                              (Other):665</code></pre>
 <pre class="r"><code>head(stimuli)</code></pre>
 <pre><code>##   dist1 dist2 source strength instruction
-## 1     9    18   dark        9       speed
-## 2    18    14   dark       18       speed
-## 3    15    21   dark       15       speed
-## 4    24    24   dark       24       speed
-## 5    19    10  light       10       speed
-## 6    17    21   dark       17       speed</code></pre>
+## 1    17    19   dark       17       speed
+## 2    16    20   dark       16       speed
+## 3    16    19  light       19       speed
+## 4    17    28  light       28       speed
+## 5    10    25  light       25       speed
+## 6    15     7  light        7       speed</code></pre>
 <p>Also, we can first define the DM for 1 trial, where the lower boundary corresponds to “dark” and the upper boundary corresponds to “light”:</p>
 <pre class="r"><code># simulate data from simple DM
 random_dm &lt;- function(drift, threshold, ndt=.15, rel_sp=.5, noise_constant=1, dt=0.001, max_rt=10) {

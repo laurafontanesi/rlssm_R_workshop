@@ -19,4 +19,4 @@ navbar:
       href: group_project.html
 output:
   html_document:
-    theme: cosmo
+    theme: flatly
