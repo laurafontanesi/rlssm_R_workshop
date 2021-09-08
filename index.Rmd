@@ -1,5 +1,5 @@
 ---
-title: "Index page"
+title: "Home"
 ---
 
 Here you find the coding material for the workshop on **reinforcement learning and sequential sampling modeling**, presented at [CMAH](https://cmah.eu/) 2021 (9 and 10 Sept 2021).
@@ -22,7 +22,7 @@ Here you find the coding material for the workshop on **reinforcement learning a
 ## Before starting
 
 Check the installation of the following packages:
-```{r}
+```{r echo=TRUE, message=FALSE, warning=FALSE}
 require(tidyverse)
 require(dfoptim)
 require(rtdists)
