@@ -2,11 +2,11 @@ name: "rlssm_R_workshop"
 output_dir: "docs"
 navbar:
   title: "RLSSM R workshop"
-left:
-  - text: "Home"
-    href: index.html
-  - text: "DM"
-    href: DM.html
+  left:
+    - text: "Home"
+      href: index.html
+    - text: "DM"
+      href: DM.html
 output:
   html_document:
     theme: cosmo
