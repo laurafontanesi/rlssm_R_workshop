@@ -254,9 +254,6 @@ $(document).ready(function () {
   <a href="RLDM.html">RLDM</a>
 </li>
 <li>
-  <a href="RLRDM.html">RLRDM</a>
-</li>
-<li>
   <a href="Fontanesi2019.html">Example 1</a>
 </li>
 <li>
@@ -358,12 +355,12 @@ ggplot(data = sim_path, aes(x = time, y = dv, color=factor(accumulator)))+
 <pre class="r"><code>sim_data &lt;- random_rdm(n_trials=1000, drift1=.7, drift2=1.2, threshold=1.5, ndt=.23)
 summary(sim_data)</code></pre>
 <pre><code>##      trial            choice            rt        
-##  Min.   :   1.0   Min.   :1.000   Min.   :0.3800  
-##  1st Qu.: 250.8   1st Qu.:1.000   1st Qu.:0.7408  
-##  Median : 500.5   Median :2.000   Median :1.0025  
-##  Mean   : 500.5   Mean   :1.618   Mean   :1.1615  
-##  3rd Qu.: 750.2   3rd Qu.:2.000   3rd Qu.:1.4160  
-##  Max.   :1000.0   Max.   :2.000   Max.   :4.9470</code></pre>
+##  Min.   :   1.0   Min.   :1.000   Min.   :0.3920  
+##  1st Qu.: 250.8   1st Qu.:1.000   1st Qu.:0.7618  
+##  Median : 500.5   Median :2.000   Median :1.0130  
+##  Mean   : 500.5   Mean   :1.668   Mean   :1.1608  
+##  3rd Qu.: 750.2   3rd Qu.:2.000   3rd Qu.:1.4060  
+##  Max.   :1000.0   Max.   :2.000   Max.   :3.9410</code></pre>
 <pre class="r"><code>ggplot(data = sim_data, mapping = aes(x = rt, fill = factor(choice))) + 
   geom_histogram(binwidth=.05, alpha = .3, position=&quot;identity&quot;)</code></pre>
 <p><img src="RDM_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
@@ -371,12 +368,12 @@ summary(sim_data)</code></pre>
 <pre class="r"><code>sim_data &lt;- rWaldRace(n=1000, v=c(.7, 1.2), B=1.5, A=0, t0=.23, gf = 0)
 summary(sim_data)</code></pre>
 <pre><code>##        RT               R        
-##  Min.   :0.3913   Min.   :1.000  
-##  1st Qu.:0.7311   1st Qu.:1.000  
-##  Median :1.0217   Median :2.000  
-##  Mean   :1.1441   Mean   :1.654  
-##  3rd Qu.:1.3662   3rd Qu.:2.000  
-##  Max.   :4.4440   Max.   :2.000</code></pre>
+##  Min.   :0.4061   Min.   :1.000  
+##  1st Qu.:0.7432   1st Qu.:1.000  
+##  Median :0.9775   Median :2.000  
+##  Mean   :1.1495   Mean   :1.659  
+##  3rd Qu.:1.3653   3rd Qu.:2.000  
+##  Max.   :5.5369   Max.   :2.000</code></pre>
 <div id="parameter-recovery-with-mle" class="section level2">
 <h2>Parameter recovery with MLE</h2>
 <p>In the same file, we can also find the likelihood function.</p>
@@ -397,14 +394,14 @@ summary(sim_data)</code></pre>
 starting_values = c(1, 1, 1, .1) # set some starting values
 
 print(log_likelihood_rdm(starting_values, data=sim_data))</code></pre>
-<pre><code>## [1] -2037.574</code></pre>
+<pre><code>## [1] -2043.087</code></pre>
 <pre class="r"><code>fit1 &lt;- nmkb(par = starting_values,
              fn = function (x) log_likelihood_rdm(x, data=sim_data),
              lower = c(0, 0, 0, 0),
              upper = c(10, 10, 10, 5),
              control = list(maximize = TRUE))
 print(fit1$par) # print estimated parameters</code></pre>
-<pre><code>## [1] 0.6763944 1.2100222 1.4631228 0.2455185</code></pre>
+<pre><code>## [1] 0.6328157 1.1856495 1.4146659 0.2652961</code></pre>
 </div>
 <div id="parameter-recovery-with-stan" class="section level2">
 <h2>Parameter Recovery with stan</h2>
@@ -424,27 +421,6 @@ print(fit1$par) # print estimated parameters</code></pre>
   iter = 3000,                                       # total number of iterations per chain
   cores = 2                                          # number of cores (could use one per chain)
 )</code></pre>
-<pre><code>## Running /Library/Frameworks/R.framework/Resources/bin/R CMD SHLIB foo.c
-## clang -mmacosx-version-min=10.13 -I&quot;/Library/Frameworks/R.framework/Resources/include&quot; -DNDEBUG   -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/Rcpp/include/&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/unsupported&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/BH/include&quot; -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/StanHeaders/include/src/&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/StanHeaders/include/&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppParallel/include/&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/rstan/include&quot; -DEIGEN_NO_DEBUG  -DBOOST_DISABLE_ASSERTS  -DBOOST_PENDING_INTEGER_LOG2_HPP  -DSTAN_THREADS  -DBOOST_NO_AUTO_PTR  -include &#39;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/StanHeaders/include/stan/math/prim/mat/fun/Eigen.hpp&#39;  -D_REENTRANT -DRCPP_PARALLEL_USE_TBB=1   -I/usr/local/include   -fPIC  -Wall -g -O2  -c foo.c -o foo.o
-## In file included from &lt;built-in&gt;:1:
-## In file included from /Library/Frameworks/R.framework/Versions/4.0/Resources/library/StanHeaders/include/stan/math/prim/mat/fun/Eigen.hpp:13:
-## In file included from /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/Dense:1:
-## In file included from /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/Core:88:
-## /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/src/Core/util/Macros.h:613:1: error: unknown type name &#39;namespace&#39;
-## namespace Eigen {
-## ^
-## /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/src/Core/util/Macros.h:613:16: error: expected &#39;;&#39; after top level declarator
-## namespace Eigen {
-##                ^
-##                ;
-## In file included from &lt;built-in&gt;:1:
-## In file included from /Library/Frameworks/R.framework/Versions/4.0/Resources/library/StanHeaders/include/stan/math/prim/mat/fun/Eigen.hpp:13:
-## In file included from /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/Dense:1:
-## /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/Core:96:10: fatal error: &#39;complex&#39; file not found
-## #include &lt;complex&gt;
-##          ^~~~~~~~~
-## 3 errors generated.
-## make: *** [foo.o] Error 1</code></pre>
 <p>Compare the generating parameters with the recovered ones and check for convergence looking at the Rhat measures:</p>
 <pre class="r"><code>print(fit1, pars = c(&quot;transf_drift1&quot;, &quot;transf_drift2&quot;, &quot;transf_threshold&quot;, &quot;transf_ndt&quot;))</code></pre>
 <pre><code>## Inference for Stan model: RDM.
@@ -452,12 +428,12 @@ print(fit1$par) # print estimated parameters</code></pre>
 ## post-warmup draws per chain=2000, total post-warmup draws=4000.
 ## 
 ##                  mean se_mean   sd 2.5%  25%  50%  75% 97.5% n_eff Rhat
-## transf_drift1    0.68       0 0.07 0.55 0.63 0.68 0.72  0.82  1091    1
-## transf_drift2    1.21       0 0.06 1.09 1.17 1.21 1.26  1.34  1151    1
-## transf_threshold 1.47       0 0.08 1.34 1.42 1.47 1.52  1.64   930    1
-## transf_ndt       0.24       0 0.02 0.19 0.23 0.24 0.26  0.28  1008    1
+## transf_drift1    0.64       0 0.07 0.51 0.59 0.63 0.68  0.77  1100    1
+## transf_drift2    1.19       0 0.06 1.07 1.15 1.19 1.23  1.31  1135    1
+## transf_threshold 1.43       0 0.07 1.30 1.38 1.42 1.47  1.56   848    1
+## transf_ndt       0.26       0 0.02 0.22 0.25 0.26 0.28  0.30   912    1
 ## 
-## Samples were drawn using NUTS(diag_e) at Wed Sep  8 13:23:50 2021.
+## Samples were drawn using NUTS(diag_e) at Wed Sep  8 22:44:14 2021.
 ## For each parameter, n_eff is a crude measure of effective sample size,
 ## and Rhat is the potential scale reduction factor on split chains (at 
 ## convergence, Rhat=1).</code></pre>
@@ -466,20 +442,13 @@ print(fit1$par) # print estimated parameters</code></pre>
 <p><img src="RDM_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
 <pre class="r"><code>sampler_params &lt;- get_sampler_params(fit1, inc_warmup = TRUE)
 summary(do.call(rbind, sampler_params), digits = 2)</code></pre>
-<pre><code>##  accept_stat__    stepsize__       treedepth__   n_leapfrog__  divergent__    
-##  Min.   :0.00   Min.   : 0.0045   Min.   :0.0   Min.   :  1   Min.   :0.0000  
-##  1st Qu.:0.86   1st Qu.: 0.2206   1st Qu.:3.0   1st Qu.:  7   1st Qu.:0.0000  
-##  Median :0.96   Median : 0.2299   Median :3.0   Median : 15   Median :0.0000  
-##  Mean   :0.88   Mean   : 0.2363   Mean   :3.2   Mean   : 13   Mean   :0.0063  
-##  3rd Qu.:0.99   3rd Qu.: 0.2299   3rd Qu.:4.0   3rd Qu.: 15   3rd Qu.:0.0000  
-##  Max.   :1.00   Max.   :14.3855   Max.   :7.0   Max.   :143   Max.   :1.0000  
-##     energy__    
-##  Min.   : 1254  
-##  1st Qu.: 1256  
-##  Median : 1258  
-##  Mean   : 1263  
-##  3rd Qu.: 1259  
-##  Max.   :13831</code></pre>
+<pre><code>##  accept_stat__    stepsize__       treedepth__   n_leapfrog__  divergent__        energy__    
+##  Min.   :0.00   Min.   : 0.0037   Min.   :0.0   Min.   :  1   Min.   :0.0000   Min.   : 1246  
+##  1st Qu.:0.87   1st Qu.: 0.2321   1st Qu.:3.0   1st Qu.:  7   1st Qu.:0.0000   1st Qu.: 1248  
+##  Median :0.96   Median : 0.2483   Median :3.0   Median : 15   Median :0.0000   Median : 1249  
+##  Mean   :0.88   Mean   : 0.2593   Mean   :3.2   Mean   : 13   Mean   :0.0087   Mean   : 1253  
+##  3rd Qu.:0.99   3rd Qu.: 0.2483   3rd Qu.:4.0   3rd Qu.: 15   3rd Qu.:0.0000   3rd Qu.: 1251  
+##  Max.   :1.00   Max.   :14.3855   Max.   :7.0   Max.   :183   Max.   :1.0000   Max.   :11465</code></pre>
 <p>More plotting:</p>
 <pre class="r"><code>posterior &lt;- as.matrix(fit1)
 

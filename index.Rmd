@@ -12,7 +12,6 @@ Here you find the coding material for the workshop on **reinforcement learning a
 
 * Combining RL with sequential sampling
 	1. RL + Diffusion model
-	2. RL + Race diffusion model
 
 * Examples
   1. Fitting the RLDM on Fontanesi and colleagues (2019) data with hierarchical Bayesian estimation

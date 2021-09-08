@@ -11,8 +11,6 @@ navbar:
       href: RDM.html
     - text: "RLDM"
       href: RLDM.html
-    - text: "RLRDM"
-      href: RLRDM.html
     - text: "Example 1"
       href: Fontanesi2019.html
     - text: "Example 2"
