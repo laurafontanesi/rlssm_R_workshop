@@ -1,0 +1,22 @@
+---
+title: "index"
+author: "Laura Fontanesi"
+date: "9/8/2021"
+output: html_document
+---
+
+## Index page
+
+Here you find the coding material for the workshop on **reinforcement learning and sequential sampling modeling**, presented at [CMAH](https://cmah.eu/) 2021 (9 and 10 Sept 2021).
+
+*Program*:
+
+* Sequential sampling
+  1. Diffusion model
+  2. Race diffusion model
+
+* Combining RL with sequential sampling
+	1. RL + Diffusion model
+	2. RL + Race diffusion model
+
+* Group project
