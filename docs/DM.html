@@ -279,7 +279,214 @@ $(document).ready(function () {
 </div>
 
 
+<pre class="r"><code>rm(list = ls())
+library(tidyverse)
+library(dfoptim)
+library(rtdists)
+library(rstan)
+library(bayesplot)</code></pre>
+<p>We can write down Equation 5 from <a href="https://pubmed.ncbi.nlm.nih.gov/17014301/">Bogacz 2006 paper</a> to simulate the process described by the Diffusion Model <em>without</em> across-trial variability:</p>
+<pre class="r"><code>dm_path &lt;- function(drift, threshold, ndt, rel_sp=.5, noise_constant=1, dt=0.001, max_rt=10) {
+  max_tsteps &lt;- max_rt/dt
+  
+  # initialize the diffusion process
+  tstep &lt;- 0
+  x &lt;- c(rel_sp*threshold) # vector of accumulated evidence at t=tstep
+  time &lt;- c(ndt)
+  
+  # start accumulating
+  while (0 &lt; x[tstep+1] &amp; x[tstep+1] &lt; threshold &amp; tstep &lt; max_tsteps) {
+    x &lt;- c(x, x[tstep+1] + rnorm(mean=drift*dt, sd=noise_constant*sqrt(dt), n=1))
+    time &lt;- c(time, dt*tstep + ndt)
+    tstep &lt;- tstep + 1
+  }
+  return (data.frame(time=time, dv=x))
+}</code></pre>
+<p>And visualize it:</p>
+<pre class="r"><code>gen_drift = .3
+gen_threshold = 1
+gen_ndt = .23
+sim_path &lt;- dm_path(gen_drift, gen_threshold, gen_ndt)
 
+ggplot(data = sim_path, aes(x = time, y = dv))+
+  geom_line(size = .5) +
+  geom_hline(yintercept=gen_threshold, size=1.5) +
+  geom_hline(yintercept=0, size=1.5)</code></pre>
+<p><img src="DM_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+<p>To have a look at the whole distribution, though, we want to simulate more trials:</p>
+<pre class="r"><code>random_dm &lt;- function(n_trials, drift, threshold, ndt, rel_sp=.5, noise_constant=1, dt=0.001, max_rt=10) {
+
+  acc &lt;- rep(NA, n_trials)
+  rt &lt;- rep(NA, n_trials)
+  max_tsteps &lt;- max_rt/dt
+
+  # initialize the diffusion process
+  tstep &lt;- 0
+  x &lt;- rep(rel_sp*threshold, n_trials) # vector of accumulated evidence at t=tstep
+  ongoing &lt;- rep(TRUE, n_trials) # have the accumulators reached the bound?
+
+  # start accumulating
+  while (sum(ongoing) &gt; 0 &amp; tstep &lt; max_tsteps) {
+    x[ongoing] &lt;- x[ongoing] + rnorm(mean=drift*dt,
+                                     sd=noise_constant*sqrt(dt),
+                                     n=sum(ongoing))
+    tstep &lt;- tstep + 1
+    
+    # ended trials
+    ended_correct &lt;- (x &gt;= threshold)
+    ended_incorrect &lt;- (x &lt;= 0)
+    
+    # store results and filter out ended trials
+    if(sum(ended_correct) &gt; 0) {
+      acc[ended_correct &amp; ongoing] &lt;- 1
+      rt[ended_correct &amp; ongoing] &lt;- dt*tstep + ndt
+      ongoing[ended_correct] &lt;- FALSE
+    }
+    
+    if(sum(ended_incorrect) &gt; 0) {
+      acc[ended_incorrect &amp; ongoing] &lt;- 0
+      rt[ended_incorrect &amp; ongoing] &lt;- dt*tstep + ndt
+      ongoing[ended_incorrect] &lt;- FALSE
+    }
+  }
+  return (data.frame(trial=seq(1, n_trials), accuracy=acc, rt=rt))
+}</code></pre>
+<p>And have a look at the average performance and shape of the RT distributions:</p>
+<pre class="r"><code>sim_data &lt;- random_dm(n_trials=1000, drift=.7, threshold=1.5, ndt=.23)
+summary(sim_data)</code></pre>
+<pre><code>##      trial           accuracy           rt        
+##  Min.   :   1.0   Min.   :0.000   Min.   :0.2870  
+##  1st Qu.: 250.8   1st Qu.:0.000   1st Qu.:0.4690  
+##  Median : 500.5   Median :1.000   Median :0.6380  
+##  Mean   : 500.5   Mean   :0.747   Mean   :0.7729  
+##  3rd Qu.: 750.2   3rd Qu.:1.000   3rd Qu.:0.9460  
+##  Max.   :1000.0   Max.   :1.000   Max.   :3.8430</code></pre>
+<pre class="r"><code>ggplot(data = sim_data, mapping = aes(x = rt, fill = factor(accuracy))) + 
+  geom_histogram(binwidth=.05, alpha = .3, position=&quot;identity&quot;)</code></pre>
+<p><img src="DM_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<p>The same result can be achieved with the <code>rdiffusion</code> function of the <code>rtdists</code>package:</p>
+<pre class="r"><code>sim_data2 &lt;- rdiffusion(n=1000, a=1.5, v=.7, t0=.23)
+sim_data2$accuracy = 0
+sim_data2[sim_data2$response==&quot;upper&quot;, &quot;accuracy&quot;] = 1
+summary(sim_data2)</code></pre>
+<pre><code>##        rt          response      accuracy    
+##  Min.   :0.2764   lower:272   Min.   :0.000  
+##  1st Qu.:0.4672   upper:728   1st Qu.:0.000  
+##  Median :0.6478               Median :1.000  
+##  Mean   :0.7838               Mean   :0.728  
+##  3rd Qu.:0.9761               3rd Qu.:1.000  
+##  Max.   :4.0789               Max.   :1.000</code></pre>
+<div id="parameter-recovery-with-mle" class="section level2">
+<h2>Parameter recovery with MLE</h2>
+<p>An efficient approximation to the likelihood function of the DM can be found in the <a href="https://www.sciencedirect.com/science/article/pii/S0022249609000200?via%3Dihub#appC">Navarro &amp; Fuss paper</a>. In the appendix, you can find the matlab code and convert it to R. However, a computationally efficient version of it can be also found in the <code>rtdists</code> package as well. We just need to wrap it to use in the MLE fitting later on:</p>
+<pre class="r"><code>log_likelihood_dm &lt;- function(par, data, ll_threshold=1e-10) {
+  
+  density &lt;- ddiffusion(rt=data$rt, response=data$response, a=par[1], v=par[2], t0=par[3])
+  
+  density[density &lt;= ll_threshold] = ll_threshold # put a threhsold on very low likelihoods for computability
+  
+  return(sum(log(density)))
+}</code></pre>
+<p>We can thus use the Nelder-Mead algorithm in the <code>dfoptim</code> package to estimate the parameters:</p>
+<pre class="r"><code>starting_values = c(.5, 1, .1) # set some starting values
+
+print(log_likelihood_dm(starting_values, data=sim_data2)) # check that starting values are plausible</code></pre>
+<pre><code>## [1] -10307.28</code></pre>
+<pre class="r"><code>fit1 &lt;- nmkb(par = starting_values,
+             fn = function (x) log_likelihood_dm(x, data=sim_data2),
+             lower = c(0, -10, 0),
+             upper = c(10, 10, 5),
+             control = list(maximize = TRUE))
+print(fit1$par) # print estimated parameters</code></pre>
+<pre><code>## [1] 1.5490646 0.6366870 0.2291302</code></pre>
+</div>
+<div id="parameter-recovery-with-stan" class="section level2">
+<h2>Parameter Recovery with stan</h2>
+<p>We can also recover the generating parameters of the simulated data with stan, to assess th model’s identifialbility.</p>
+<p>First, we need to prepare our data for stan:</p>
+<pre class="r"><code>sim_data$accuracy_recoded = sim_data$accuracy
+sim_data[sim_data$accuracy==0, &quot;accuracy_recoded&quot;] = -1
+
+sim_data_for_stan = list(
+  N = dim(sim_data)[1],
+  accuracy = sim_data$accuracy_recoded,
+  rt = sim_data$rt,
+  starting_point = 0.5
+)</code></pre>
+<p>And then we can fit the model:</p>
+<pre class="r"><code>fit1 &lt;- stan(
+  file = &quot;stan_models/DM.stan&quot;,                      # Stan program
+  data = sim_data_for_stan,                          # named list of data
+  chains = 2,                                        # number of Markov chains
+  warmup = 1000,                                     # number of warmup iterations per chain
+  iter = 3000,                                       # total number of iterations per chain
+  cores = 2                                          # number of cores (could use one per chain)
+)</code></pre>
+<pre><code>## Running /Library/Frameworks/R.framework/Resources/bin/R CMD SHLIB foo.c
+## clang -mmacosx-version-min=10.13 -I&quot;/Library/Frameworks/R.framework/Resources/include&quot; -DNDEBUG   -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/Rcpp/include/&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/unsupported&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/BH/include&quot; -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/StanHeaders/include/src/&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/StanHeaders/include/&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppParallel/include/&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/rstan/include&quot; -DEIGEN_NO_DEBUG  -DBOOST_DISABLE_ASSERTS  -DBOOST_PENDING_INTEGER_LOG2_HPP  -DSTAN_THREADS  -DBOOST_NO_AUTO_PTR  -include &#39;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/StanHeaders/include/stan/math/prim/mat/fun/Eigen.hpp&#39;  -D_REENTRANT -DRCPP_PARALLEL_USE_TBB=1   -I/usr/local/include   -fPIC  -Wall -g -O2  -c foo.c -o foo.o
+## In file included from &lt;built-in&gt;:1:
+## In file included from /Library/Frameworks/R.framework/Versions/4.0/Resources/library/StanHeaders/include/stan/math/prim/mat/fun/Eigen.hpp:13:
+## In file included from /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/Dense:1:
+## In file included from /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/Core:88:
+## /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/src/Core/util/Macros.h:613:1: error: unknown type name &#39;namespace&#39;
+## namespace Eigen {
+## ^
+## /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/src/Core/util/Macros.h:613:16: error: expected &#39;;&#39; after top level declarator
+## namespace Eigen {
+##                ^
+##                ;
+## In file included from &lt;built-in&gt;:1:
+## In file included from /Library/Frameworks/R.framework/Versions/4.0/Resources/library/StanHeaders/include/stan/math/prim/mat/fun/Eigen.hpp:13:
+## In file included from /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/Dense:1:
+## /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/Core:96:10: fatal error: &#39;complex&#39; file not found
+## #include &lt;complex&gt;
+##          ^~~~~~~~~
+## 3 errors generated.
+## make: *** [foo.o] Error 1</code></pre>
+<p>Compare the generating parameters with the recovered ones and check for convergence looking at the Rhat measures:</p>
+<pre class="r"><code>print(fit1, pars = c(&quot;drift&quot;, &quot;transf_threshold&quot;, &quot;transf_ndt&quot;))</code></pre>
+<pre><code>## Inference for Stan model: DM.
+## 2 chains, each with iter=3000; warmup=1000; thin=1; 
+## post-warmup draws per chain=2000, total post-warmup draws=4000.
+## 
+##                  mean se_mean   sd 2.5%  25%  50%  75% 97.5% n_eff Rhat
+## drift            0.70       0 0.04 0.62 0.67 0.70 0.73  0.79  2677    1
+## transf_threshold 1.54       0 0.03 1.49 1.52 1.54 1.56  1.59  2297    1
+## transf_ndt       0.23       0 0.01 0.22 0.23 0.23 0.23  0.24  2286    1
+## 
+## Samples were drawn using NUTS(diag_e) at Wed Sep  8 12:56:11 2021.
+## For each parameter, n_eff is a crude measure of effective sample size,
+## and Rhat is the potential scale reduction factor on split chains (at 
+## convergence, Rhat=1).</code></pre>
+<p>And (visually) assess the model’s convergence as well as some more sampling diagnostics:</p>
+<pre class="r"><code>traceplot(fit1, pars = c(&quot;drift&quot;, &quot;transf_threshold&quot;, &quot;transf_ndt&quot;), inc_warmup = FALSE, nrow = 2)</code></pre>
+<p><img src="DM_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
+<pre class="r"><code>sampler_params &lt;- get_sampler_params(fit1, inc_warmup = TRUE)
+summary(do.call(rbind, sampler_params), digits = 2)</code></pre>
+<pre><code>##  accept_stat__    stepsize__       treedepth__   n_leapfrog__   divergent__    
+##  Min.   :0.00   Min.   : 0.0036   Min.   :0.0   Min.   : 1.0   Min.   :0.0000  
+##  1st Qu.:0.85   1st Qu.: 0.5752   1st Qu.:2.0   1st Qu.: 3.0   1st Qu.:0.0000  
+##  Median :0.95   Median : 0.5966   Median :2.0   Median : 7.0   Median :0.0000  
+##  Mean   :0.88   Mean   : 0.6366   Mean   :2.3   Mean   : 5.6   Mean   :0.0052  
+##  3rd Qu.:0.99   3rd Qu.: 0.5966   3rd Qu.:3.0   3rd Qu.: 7.0   3rd Qu.:0.0000  
+##  Max.   :1.00   Max.   :14.3855   Max.   :5.0   Max.   :31.0   Max.   :1.0000  
+##     energy__   
+##  Min.   : 816  
+##  1st Qu.: 818  
+##  Median : 819  
+##  Mean   : 819  
+##  3rd Qu.: 820  
+##  Max.   :1107</code></pre>
+<p>More plotting:</p>
+<pre class="r"><code>posterior &lt;- as.matrix(fit1)
+
+plot_title &lt;- ggtitle(&quot;Posterior distributions&quot;,
+                      &quot;with medians and 95% intervals&quot;)
+mcmc_areas(posterior,
+           pars = c(&quot;drift&quot;, &quot;transf_threshold&quot;, &quot;transf_ndt&quot;),
+           prob = 0.95) + plot_title</code></pre>
+<p><img src="DM_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
+</div>
 
 
 

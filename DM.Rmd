@@ -2,3 +2,193 @@
 title: "The diffusion model"
 ---
 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+rm(list = ls())
+library(tidyverse)
+library(dfoptim)
+library(rtdists)
+library(rstan)
+library(bayesplot)
+```
+
+We can write down Equation 5 from [Bogacz 2006 paper](https://pubmed.ncbi.nlm.nih.gov/17014301/) to simulate the process described by the Diffusion Model *without* across-trial variability:
+
+```{r}
+dm_path <- function(drift, threshold, ndt, rel_sp=.5, noise_constant=1, dt=0.001, max_rt=10) {
+  max_tsteps <- max_rt/dt
+  
+  # initialize the diffusion process
+  tstep <- 0
+  x <- c(rel_sp*threshold) # vector of accumulated evidence at t=tstep
+  time <- c(ndt)
+  
+  # start accumulating
+  while (0 < x[tstep+1] & x[tstep+1] < threshold & tstep < max_tsteps) {
+    x <- c(x, x[tstep+1] + rnorm(mean=drift*dt, sd=noise_constant*sqrt(dt), n=1))
+    time <- c(time, dt*tstep + ndt)
+    tstep <- tstep + 1
+  }
+  return (data.frame(time=time, dv=x))
+}
+```
+
+And visualize it:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+gen_drift = .3
+gen_threshold = 1
+gen_ndt = .23
+sim_path <- dm_path(gen_drift, gen_threshold, gen_ndt)
+
+ggplot(data = sim_path, aes(x = time, y = dv))+
+  geom_line(size = .5) +
+  geom_hline(yintercept=gen_threshold, size=1.5) +
+  geom_hline(yintercept=0, size=1.5)
+```
+
+To have a look at the whole distribution, though, we want to simulate more trials:
+
+```{r}
+random_dm <- function(n_trials, drift, threshold, ndt, rel_sp=.5, noise_constant=1, dt=0.001, max_rt=10) {
+
+  acc <- rep(NA, n_trials)
+  rt <- rep(NA, n_trials)
+  max_tsteps <- max_rt/dt
+
+  # initialize the diffusion process
+  tstep <- 0
+  x <- rep(rel_sp*threshold, n_trials) # vector of accumulated evidence at t=tstep
+  ongoing <- rep(TRUE, n_trials) # have the accumulators reached the bound?
+
+  # start accumulating
+  while (sum(ongoing) > 0 & tstep < max_tsteps) {
+    x[ongoing] <- x[ongoing] + rnorm(mean=drift*dt,
+                                     sd=noise_constant*sqrt(dt),
+                                     n=sum(ongoing))
+    tstep <- tstep + 1
+    
+    # ended trials
+    ended_correct <- (x >= threshold)
+    ended_incorrect <- (x <= 0)
+    
+    # store results and filter out ended trials
+    if(sum(ended_correct) > 0) {
+      acc[ended_correct & ongoing] <- 1
+      rt[ended_correct & ongoing] <- dt*tstep + ndt
+      ongoing[ended_correct] <- FALSE
+    }
+    
+    if(sum(ended_incorrect) > 0) {
+      acc[ended_incorrect & ongoing] <- 0
+      rt[ended_incorrect & ongoing] <- dt*tstep + ndt
+      ongoing[ended_incorrect] <- FALSE
+    }
+  }
+  return (data.frame(trial=seq(1, n_trials), accuracy=acc, rt=rt))
+}
+```
+
+And have a look at the average performance and shape of the RT distributions:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+sim_data <- random_dm(n_trials=1000, drift=.7, threshold=1.5, ndt=.23)
+summary(sim_data)
+
+ggplot(data = sim_data, mapping = aes(x = rt, fill = factor(accuracy))) + 
+  geom_histogram(binwidth=.05, alpha = .3, position="identity")
+```
+
+The same result can be achieved with the `rdiffusion` function of the `rtdists`package:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+sim_data2 <- rdiffusion(n=1000, a=1.5, v=.7, t0=.23)
+sim_data2$accuracy = 0
+sim_data2[sim_data2$response=="upper", "accuracy"] = 1
+summary(sim_data2)
+```
+
+## Parameter recovery with MLE
+
+An efficient approximation to the likelihood function of the DM can be found in the [Navarro & Fuss paper](https://www.sciencedirect.com/science/article/pii/S0022249609000200?via%3Dihub#appC). In the appendix, you can find the matlab code and convert it to R. However, a computationally efficient version of it can be also found in the `rtdists` package as well. We just need to wrap it to use in the MLE fitting later on:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+log_likelihood_dm <- function(par, data, ll_threshold=1e-10) {
+  
+  density <- ddiffusion(rt=data$rt, response=data$response, a=par[1], v=par[2], t0=par[3])
+  
+  density[density <= ll_threshold] = ll_threshold # put a threhsold on very low likelihoods for computability
+  
+  return(sum(log(density)))
+}
+```
+
+We can thus use the Nelder-Mead algorithm in the `dfoptim` package to estimate the parameters:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+starting_values = c(.5, 1, .1) # set some starting values
+
+print(log_likelihood_dm(starting_values, data=sim_data2)) # check that starting values are plausible
+
+fit1 <- nmkb(par = starting_values,
+             fn = function (x) log_likelihood_dm(x, data=sim_data2),
+             lower = c(0, -10, 0),
+             upper = c(10, 10, 5),
+             control = list(maximize = TRUE))
+print(fit1$par) # print estimated parameters
+```
+
+## Parameter Recovery with stan
+
+We can also recover the generating parameters of the simulated data with stan, to assess th model's identifialbility.
+
+First, we need to prepare our data for stan:
+
+```{r message=FALSE, warning=FALSE}
+sim_data$accuracy_recoded = sim_data$accuracy
+sim_data[sim_data$accuracy==0, "accuracy_recoded"] = -1
+
+sim_data_for_stan = list(
+  N = dim(sim_data)[1],
+  accuracy = sim_data$accuracy_recoded,
+  rt = sim_data$rt,
+  starting_point = 0.5
+)
+```
+
+And then we can fit the model:
+
+```{r message=FALSE, warning=FALSE}
+fit1 <- stan(
+  file = "stan_models/DM.stan",                      # Stan program
+  data = sim_data_for_stan,                          # named list of data
+  chains = 2,                                        # number of Markov chains
+  warmup = 1000,                                     # number of warmup iterations per chain
+  iter = 3000,                                       # total number of iterations per chain
+  cores = 2                                          # number of cores (could use one per chain)
+)
+```
+
+Compare the generating parameters with the recovered ones and check for convergence looking at the Rhat measures:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+print(fit1, pars = c("drift", "transf_threshold", "transf_ndt"))
+```
+
+And (visually) assess the model's convergence as well as some more sampling diagnostics:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+traceplot(fit1, pars = c("drift", "transf_threshold", "transf_ndt"), inc_warmup = FALSE, nrow = 2)
+
+sampler_params <- get_sampler_params(fit1, inc_warmup = TRUE)
+summary(do.call(rbind, sampler_params), digits = 2)
+```
+
+More plotting:
+```{r}
+posterior <- as.matrix(fit1)
+
+plot_title <- ggtitle("Posterior distributions",
+                      "with medians and 95% intervals")
+mcmc_areas(posterior,
+           pars = c("drift", "transf_threshold", "transf_ndt"),
+           prob = 0.95) + plot_title
+```
