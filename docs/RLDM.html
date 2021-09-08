@@ -279,7 +279,376 @@ $(document).ready(function () {
 </div>
 
 
+<pre class="r"><code>rm(list = ls())
+library(tidyverse)
+library(dfoptim)
+library(rtdists)
+library(rstan)
+library(bayesplot)</code></pre>
+<p>First, we need to create some stimuli for the reinforcement learning task. I am going to recreate the experiment we used in <a href="https://link.springer.com/article/10.3758/s13423-018-1554-2">our RLDM paper</a>:</p>
+<pre class="r"><code>generate_RL_stimuli &lt;- function (n_trials, trial_types, mean_options, sd_options) {
+  # n_trials_block : Number of trials per learning session.
+  # n_blocks : Number of learning session per participant.
+  # n_participants : Number of participants.
 
+  # trial_types : List containing possible pairs of options.
+  # E.g., in the original experiment: c(&#39;1-2&#39;, &#39;1-3&#39;, &#39;2-4&#39;, &#39;3-4&#39;).
+  # It is important that they are separated by a &#39;-&#39;,
+  # and that they are numbered from 1 to n_options (4 in the example).
+  # Also, the &quot;incorrect&quot; option of the couple should go first in each pair.
+  
+  # mean_options : Mean reward for each option.
+  # The length should correspond to n_options.
+  
+  # sd_options : SD reward for each option.
+  # The length should correspond to n_options.
+  
+  generate_trial_type_sequence &lt;- function (n_trials, trial_types) {
+    n_trial_types = length(trial_types)
+    sequence = rep(trial_types, n_trials/n_trial_types)
+    sample(sequence)
+    
+    count = 3
+    while (count &lt; length(sequence)) {
+      if (sequence[count]==sequence[count-1] &amp; sequence[count-1]==sequence[count-2]) {
+        sample(sequence)
+        count = 2
+      }
+      count = count + 1
+    }
+    return(sequence)
+  }
+  
+  task_design = data.frame(
+    trial = seq(1, n_trials),
+    trial_type = generate_trial_type_sequence(n_trials, trial_types)
+    )
+  
+  task_design &lt;- separate(task_design, 
+                          col=trial_type,
+                          into=c(&#39;inc_option&#39;, &#39;cor_option&#39;),
+                          sep=&#39;-&#39;,
+                          remove=FALSE,
+                          convert=TRUE)
+
+  options = unique(c(unique(task_design$inc_option), unique(task_design$cor_option)))
+  n_options = length(options)
+  print(&quot;The task will be created with the following options:&quot;)
+  print(data.frame(options=options, mean=mean_options, sd=sd_options))
+  
+  task_design$f_inc = round(rnorm(
+    mean = mean_options[task_design$inc_option], 
+    sd = sd_options[task_design$inc_option], 
+    n=dim(task_design)[1]))
+  task_design$f_cor = round(rnorm(
+    mean = mean_options[task_design$cor_option], 
+    sd = sd_options[task_design$cor_option], 
+    n=dim(task_design)[1]))
+  
+  return(task_design)
+}</code></pre>
+<p>Generate a bunch of trials and visualize the task design:</p>
+<pre class="r"><code>stimuli &lt;- generate_RL_stimuli(
+  n_trials=200,
+  trial_types=c(&#39;1-2&#39;, &#39;1-3&#39;, &#39;2-4&#39;, &#39;3-4&#39;),
+  mean_options=c(30, 34, 50, 54),
+  sd_options=c(5, 5, 5, 5))</code></pre>
+<pre><code>## [1] &quot;The task will be created with the following options:&quot;
+##   options mean sd
+## 1       1   30  5
+## 2       2   34  5
+## 3       3   50  5
+## 4       4   54  5</code></pre>
+<pre class="r"><code>head(stimuli)</code></pre>
+<pre><code>##   trial trial_type inc_option cor_option f_inc f_cor
+## 1     1        1-2          1          2    25    41
+## 2     2        1-3          1          3    33    54
+## 3     3        2-4          2          4    41    49
+## 4     4        3-4          3          4    47    58
+## 5     5        1-2          1          2    23    34
+## 6     6        1-3          1          3    38    57</code></pre>
+<pre class="r"><code>stimuli_for_plotting &lt;- pivot_longer(stimuli, cols=c(f_inc, f_cor), names_to = &quot;option&quot;, names_prefix = &quot;f_&quot;, values_to=&quot;feedback&quot;)
+
+ggplot(data = stimuli_for_plotting, aes(x = trial, y = feedback, color=option))+
+  geom_line(size = .5) +
+  geom_point() +
+  facet_grid(rows = vars(trial_type))</code></pre>
+<p><img src="RLDM_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+<p>We can now write down Equations 1, 4, and 5 from <a href="https://link.springer.com/article/10.3758/s13423-018-1554-2">our RLDM paper</a> to simulate the process described by the RLDM:</p>
+<pre class="r"><code># simulate data from simple DM
+random_dm &lt;- function(drift, threshold, ndt, rel_sp=.5, noise_constant=1, dt=0.001, max_rt=10) {
+  
+  if (length(drift) != length(threshold) | length(threshold)!=length(ndt)) {
+    stop(&quot;drift, threshold, and ndt should have the same length&quot;)
+  }
+  
+  n_trials &lt;- length(drift)
+  acc &lt;- rep(NA, n_trials)
+  rt &lt;- rep(NA, n_trials)
+  max_tsteps &lt;- max_rt/dt
+  
+  # initialize the diffusion process
+  tstep &lt;- 0
+  x &lt;- rel_sp*threshold # vector of accumulated evidence at t=tstep
+  ongoing &lt;- rep(TRUE, n_trials) # have the accumulators reached the bound?
+  
+  # start accumulating
+  while (sum(ongoing) &gt; 0 &amp; tstep &lt; max_tsteps) {
+    x[ongoing] &lt;- x[ongoing] + rnorm(mean=drift[ongoing]*dt,
+                                     sd=noise_constant*sqrt(dt),
+                                     n=sum(ongoing))
+    tstep &lt;- tstep + 1
+    
+    # ended trials
+    ended_correct &lt;- (x &gt;= threshold)
+    ended_incorrect &lt;- (x &lt;= 0)
+    
+    # store results and filter out ended trials
+    if(sum(ended_correct) &gt; 0) {
+      acc[ended_correct &amp; ongoing] &lt;- 1
+      rt[ended_correct &amp; ongoing] &lt;- dt*tstep + ndt[ended_correct &amp; ongoing]
+      ongoing[ended_correct] &lt;- FALSE
+    }
+    
+    if(sum(ended_incorrect) &gt; 0) {
+      acc[ended_incorrect &amp; ongoing] &lt;- 0
+      rt[ended_incorrect &amp; ongoing] &lt;- dt*tstep + ndt[ended_incorrect &amp; ongoing]
+      ongoing[ended_incorrect] &lt;- FALSE
+    }
+  }
+  return (data.frame(trial=seq(1, n_trials), accuracy=acc, rt=rt))
+}
+
+# simulate data from simple RLDM
+random_rldm &lt;- function(stimuli, alpha, drift_scaling, threshold, ndt, rel_sp=.5, noise_constant=1, dt=0.001, max_rt=10, initial_value_learning=20) {
+  n_trials = dim(stimuli)[1]
+  options = unique(c(unique(stimuli$inc_option), unique(stimuli$cor_option)))
+  n_options = length(options)
+  
+  # Rescorla Wagner learning rule
+  stimuli$Q_cor = NA
+  stimuli$Q_inc = NA
+  Q = rep(initial_value_learning, n_options)
+  
+  for (n in seq(1, n_trials, 1)) {
+    index_cor = stimuli[n, &quot;cor_option&quot;]
+    index_inc = stimuli[n, &quot;inc_option&quot;]
+    
+    # current expectations
+    stimuli[n, &quot;Q_cor&quot;] = Q[index_cor]
+    stimuli[n, &quot;Q_inc&quot;] = Q[index_inc]
+    
+    # update expectations
+    Q[index_cor] = Q[index_cor] + alpha*(stimuli[n, &quot;f_cor&quot;] - Q[index_cor])
+    Q[index_inc] = Q[index_inc] + alpha*(stimuli[n, &quot;f_inc&quot;] - Q[index_inc])
+  }
+  
+  # Diffusion Model as decision rule
+  stimuli$drift = drift_scaling*(stimuli$Q_cor - stimuli$Q_inc)
+  stimuli$threshold = threshold
+  stimuli$ndt = ndt
+  
+  performance = random_dm(stimuli$drift, stimuli$threshold, stimuli$ndt)
+  
+  return(cbind(stimuli, performance[,c(&quot;accuracy&quot;, &quot;rt&quot;)]))
+}</code></pre>
+<p>And use it to simulate data using the previously generated stimuli:</p>
+<pre class="r"><code>sim_data &lt;- random_rldm(stimuli, alpha = .03, drift_scaling = .1, threshold = 1.2, ndt=.15)
+
+head(sim_data)</code></pre>
+<pre><code>##   trial trial_type inc_option cor_option f_inc f_cor   Q_cor    Q_inc
+## 1     1        1-2          1          2    25    41 20.0000 20.00000
+## 2     2        1-3          1          3    33    54 20.0000 20.15000
+## 3     3        2-4          2          4    41    49 20.0000 20.63000
+## 4     4        3-4          3          4    47    58 20.8700 21.02000
+## 5     5        1-2          1          2    23    34 21.2411 20.53550
+## 6     6        1-3          1          3    38    57 21.7994 20.60943
+##        drift threshold  ndt accuracy    rt
+## 1  0.0000000       1.2 0.15        1 0.295
+## 2 -0.0150000       1.2 0.15        1 0.282
+## 3 -0.0630000       1.2 0.15        0 0.937
+## 4 -0.0150000       1.2 0.15        1 0.180
+## 5  0.0705600       1.2 0.15        1 0.798
+## 6  0.1189965       1.2 0.15        1 0.430</code></pre>
+<p>First, we can have a look at the average performance across trial-types. Note that, since the threshold was not modulated, the same performance is predicted across magnitudes:</p>
+<pre class="r"><code>sim_data$trial_bin &lt;- cut(sim_data$trial,
+                          breaks = seq(min(sim_data$trial), max(sim_data$trial), length.out=7),
+                          include.lowest = TRUE)
+
+ggplot(data = sim_data, aes(x = trial_type, y = rt, fill=trial_type))+
+  stat_summary(fun = &quot;mean&quot;, geom=&quot;bar&quot;, position = &#39;dodge&#39;) +
+  stat_summary(fun.data = mean_cl_normal, geom = &quot;errorbar&quot;,  size=.2, width=.9, position = &#39;dodge&#39;)</code></pre>
+<p><img src="RLDM_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<pre class="r"><code>ggplot(data = sim_data, aes(x = trial_type, y = accuracy, fill=trial_type))+
+  stat_summary(fun = &quot;mean&quot;, geom=&quot;bar&quot;, position = &#39;dodge&#39;) +
+  stat_summary(fun.data = mean_cl_normal, geom = &quot;errorbar&quot;,  size=.2, width=.9, position = &#39;dodge&#39;)</code></pre>
+<p><img src="RLDM_files/figure-html/unnamed-chunk-6-2.png" width="672" /></p>
+<p>While we kept both the threshold and ndt fixed, the drift-rates evolves with learning:</p>
+<pre class="r"><code>ggplot(data = sim_data, aes(x = trial, y = drift, color=trial_type))+
+  geom_line(size = .5) +
+  geom_point()</code></pre>
+<p><img src="RLDM_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<p>Therefore, we expect the accuracy and RTs to also improve with learning:</p>
+<pre class="r"><code>sim_data$trial_bin &lt;- cut(sim_data$trial,
+                          breaks = seq(min(sim_data$trial), max(sim_data$trial), length.out=7),
+                          include.lowest = TRUE)
+
+ggplot(data = sim_data, aes(x = trial_bin, y = rt))+
+  geom_violin(draw_quantiles = c(0.1, 0.5, 0.9))</code></pre>
+<p><img src="RLDM_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<pre class="r"><code>ggplot(data = sim_data, aes(x = trial_bin, y = accuracy))+
+    stat_summary(fun = &quot;mean&quot;, geom=&quot;bar&quot;, position = &#39;dodge&#39;) +
+  stat_summary(fun.data = mean_cl_normal, geom = &quot;errorbar&quot;,  size=.2, width=.9, position = &#39;dodge&#39;)</code></pre>
+<p><img src="RLDM_files/figure-html/unnamed-chunk-8-2.png" width="672" /></p>
+<div id="parameter-recovery-with-mle" class="section level2">
+<h2>Parameter recovery with MLE</h2>
+<p>To get the likelihood of the RLDM, we can build on the likelihood of the DM (that we saw in the previous lecture):</p>
+<pre class="r"><code>log_likelihood_rldm &lt;- function(par, data, initial_value_learning=20, ll_threshold=1e-10) {
+  # par order: alpha, drift_scaling, threshold, ndt
+  
+  n_trials = dim(data)[1]
+  options = unique(c(unique(data$inc_option), unique(data$cor_option)))
+  n_options = length(options)
+  
+  # Rescorla Wagner learning rule
+  data$Q_cor = NA
+  data$Q_inc = NA
+  Q = rep(initial_value_learning, n_options)
+  
+  for (n in seq(1, n_trials, 1)) {
+    index_cor = data[n, &quot;cor_option&quot;]
+    index_inc = data[n, &quot;inc_option&quot;]
+    
+    # current expectations
+    data[n, &quot;Q_cor&quot;] = Q[index_cor]
+    data[n, &quot;Q_inc&quot;] = Q[index_inc]
+    
+    # update expectations
+    Q[index_cor] = Q[index_cor] + par[1]*(data[n, &quot;f_cor&quot;] - Q[index_cor])
+    Q[index_inc] = Q[index_inc] + par[1]*(data[n, &quot;f_inc&quot;] - Q[index_inc])
+  }
+  
+  # Diffusion Model as decision rule
+  drift &lt;- par[2]*(data$Q_cor - data$Q_inc)
+  density &lt;- ddiffusion(rt=data$rt, response=data$response, a=par[3], v=drift, t0=par[4])
+  
+  density[density &lt;= ll_threshold] = ll_threshold # put a threhsold on very low likelihoods for computability
+  
+  return(sum(log(density)))
+}</code></pre>
+<p>We can thus use the Nelder-Mead algorithm in the <code>dfoptim</code> package to estimate the parameters:</p>
+<pre class="r"><code># preparing the data for the likelihood func
+sim_data$response = &quot;lower&quot;
+sim_data[sim_data$accuracy == 1, &quot;response&quot;] = &quot;upper&quot;
+
+starting_values = c(.5, .1, 2, .2) # set some starting values
+
+print(log_likelihood_rldm(starting_values, data=sim_data)) # check that starting values are plausible</code></pre>
+<pre><code>## [1] -574.5292</code></pre>
+<pre class="r"><code>fit1 &lt;- nmkb(par = starting_values,
+             fn = function (x) log_likelihood_rldm(x, data=sim_data),
+             lower = c(0, -10, 0, 0),
+             upper = c(1, 10, 10, 5),
+             control = list(maximize = TRUE))
+print(fit1$par) # print estimated parameters</code></pre>
+<pre><code>## [1] 0.04059539 0.08596254 1.29672950 0.14396391</code></pre>
+</div>
+<div id="parameter-recovery-with-stan" class="section level2">
+<h2>Parameter Recovery with stan</h2>
+<p>We can also recover the generating parameters of the simulated data with stan, to assess th model’s identifialbility.</p>
+<p>First, we need to prepare our data for stan:</p>
+<pre class="r"><code>sim_data$accuracy_recoded = sim_data$accuracy
+sim_data[sim_data$accuracy==0, &quot;accuracy_recoded&quot;] = -1
+
+sim_data_for_stan = list(
+  N = dim(sim_data)[1],
+  K = 4, # n options
+  accuracy = sim_data$accuracy_recoded,
+  rt = sim_data$rt,
+  starting_point = 0.5,
+  initial_value=20,
+  f_cor=sim_data$f_cor,
+  f_inc=sim_data$f_inc,
+  trial=sim_data$trial,
+  cor_option=sim_data$cor_option,
+  inc_option=sim_data$inc_option
+)</code></pre>
+<p>And then we can fit the model:</p>
+<pre class="r"><code>fit1 &lt;- stan(
+  file = &quot;stan_models/RLDM.stan&quot;,                    # Stan program
+  data = sim_data_for_stan,                          # named list of data
+  chains = 2,                                        # number of Markov chains
+  warmup = 1000,                                     # number of warmup iterations per chain
+  iter = 3000,                                       # total number of iterations per chain
+  cores = 2                                          # number of cores (could use one per chain)
+)</code></pre>
+<pre><code>## Running /Library/Frameworks/R.framework/Resources/bin/R CMD SHLIB foo.c
+## clang -mmacosx-version-min=10.13 -I&quot;/Library/Frameworks/R.framework/Resources/include&quot; -DNDEBUG   -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/Rcpp/include/&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/unsupported&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/BH/include&quot; -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/StanHeaders/include/src/&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/StanHeaders/include/&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppParallel/include/&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/rstan/include&quot; -DEIGEN_NO_DEBUG  -DBOOST_DISABLE_ASSERTS  -DBOOST_PENDING_INTEGER_LOG2_HPP  -DSTAN_THREADS  -DBOOST_NO_AUTO_PTR  -include &#39;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/StanHeaders/include/stan/math/prim/mat/fun/Eigen.hpp&#39;  -D_REENTRANT -DRCPP_PARALLEL_USE_TBB=1   -I/usr/local/include   -fPIC  -Wall -g -O2  -c foo.c -o foo.o
+## In file included from &lt;built-in&gt;:1:
+## In file included from /Library/Frameworks/R.framework/Versions/4.0/Resources/library/StanHeaders/include/stan/math/prim/mat/fun/Eigen.hpp:13:
+## In file included from /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/Dense:1:
+## In file included from /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/Core:88:
+## /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/src/Core/util/Macros.h:613:1: error: unknown type name &#39;namespace&#39;
+## namespace Eigen {
+## ^
+## /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/src/Core/util/Macros.h:613:16: error: expected &#39;;&#39; after top level declarator
+## namespace Eigen {
+##                ^
+##                ;
+## In file included from &lt;built-in&gt;:1:
+## In file included from /Library/Frameworks/R.framework/Versions/4.0/Resources/library/StanHeaders/include/stan/math/prim/mat/fun/Eigen.hpp:13:
+## In file included from /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/Dense:1:
+## /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/Core:96:10: fatal error: &#39;complex&#39; file not found
+## #include &lt;complex&gt;
+##          ^~~~~~~~~
+## 3 errors generated.
+## make: *** [foo.o] Error 1</code></pre>
+<p>Compare the generating parameters with the recovered ones and check for convergence looking at the Rhat measures:</p>
+<pre class="r"><code>print(fit1, pars = c(&quot;transf_alpha&quot;, &quot;transf_drift_scaling&quot;, &quot;transf_threshold&quot;, &quot;transf_ndt&quot;))</code></pre>
+<pre><code>## Inference for Stan model: RLDM.
+## 2 chains, each with iter=3000; warmup=1000; thin=1; 
+## post-warmup draws per chain=2000, total post-warmup draws=4000.
+## 
+##                      mean se_mean   sd 2.5%  25%  50%  75% 97.5% n_eff Rhat
+## transf_alpha         0.08       0 0.06 0.02 0.04 0.07 0.10  0.23  1991    1
+## transf_drift_scaling 0.08       0 0.02 0.06 0.07 0.08 0.09  0.12  1009    1
+## transf_threshold     1.30       0 0.05 1.21 1.27 1.30 1.33  1.40  2076    1
+## transf_ndt           0.14       0 0.01 0.12 0.14 0.14 0.15  0.16  1979    1
+## 
+## Samples were drawn using NUTS(diag_e) at Wed Sep  8 13:36:12 2021.
+## For each parameter, n_eff is a crude measure of effective sample size,
+## and Rhat is the potential scale reduction factor on split chains (at 
+## convergence, Rhat=1).</code></pre>
+<p>And (visually) assess the model’s convergence as well as some more sampling diagnostics:</p>
+<pre class="r"><code>traceplot(fit1, pars = c(&quot;transf_alpha&quot;, &quot;transf_drift_scaling&quot;, &quot;transf_threshold&quot;, &quot;transf_ndt&quot;), 
+          inc_warmup = FALSE, nrow = 2)</code></pre>
+<p><img src="RLDM_files/figure-html/unnamed-chunk-14-1.png" width="672" /></p>
+<pre class="r"><code>sampler_params &lt;- get_sampler_params(fit1, inc_warmup = TRUE)
+summary(do.call(rbind, sampler_params), digits = 2)</code></pre>
+<pre><code>##  accept_stat__    stepsize__       treedepth__   n_leapfrog__  
+##  Min.   :0.00   Min.   : 0.0011   Min.   :0.0   Min.   :  1.0  
+##  1st Qu.:0.87   1st Qu.: 0.3292   1st Qu.:2.0   1st Qu.:  7.0  
+##  Median :0.96   Median : 0.4730   Median :3.0   Median :  7.0  
+##  Mean   :0.87   Mean   : 0.4412   Mean   :2.8   Mean   :  8.8  
+##  3rd Qu.:0.99   3rd Qu.: 0.4730   3rd Qu.:3.0   3rd Qu.: 11.0  
+##  Max.   :1.00   Max.   :14.3855   Max.   :7.0   Max.   :127.0  
+##   divergent__        energy__   
+##  Min.   :0.0000   Min.   :  83  
+##  1st Qu.:0.0000   1st Qu.:  85  
+##  Median :0.0000   Median :  86  
+##  Mean   :0.0065   Mean   : 101  
+##  3rd Qu.:0.0000   3rd Qu.:  88  
+##  Max.   :1.0000   Max.   :9234</code></pre>
+<p>More plotting:</p>
+<pre class="r"><code>posterior &lt;- as.matrix(fit1)
+
+plot_title &lt;- ggtitle(&quot;Posterior distributions&quot;,
+                      &quot;with medians and 95% intervals&quot;)
+mcmc_areas(posterior,
+           pars = c(&quot;transf_alpha&quot;, &quot;transf_drift_scaling&quot;, &quot;transf_threshold&quot;, &quot;transf_ndt&quot;),
+           prob = 0.95) + plot_title</code></pre>
+<p><img src="RLDM_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
+</div>
 
 
 
