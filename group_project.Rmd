@@ -1,0 +1,246 @@
+---
+title: "Group project for the CMAH 2021"
+---
+
+In this project we will analyze the data from the first experiment of [Ratcliff and Rouder (1998)](https://www.jstor.org/stable/pdf/40063319.pdf).
+
+## Day 1. Understanding and visualizing the data
+
+First, let's clear our workspace and load a few packages:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+rm(list = ls())
+library(rtdists)
+library(tidyverse)
+```
+
+In this experiment, participants made brightness discriminations (high vs. low) of different pixel arrays.
+The proportion of dark to white pixels (or the brightness level) was sampled in each trial from one of two different overlapping distributions, with different mean and equal SD (dark vs light) and was then discretized in steps of 33 (so that there were only 33 possible brightness levels in the experiment).
+
+The correct response was to match the distribution from which the brightness level **was sampled from** (labeled "source" in the dataset). Therefore, the noise in participants' responses could come both from:
+
+* noise in the stimulus (since the 2 distributions were overlapping)
+* noise in the perception.
+
+There were 2 main manipulations:
+
+* instructions in each block could bring more emphasis on either speed or accuracy
+* the brightness level (labelled "strenght" in the dataset).
+
+We can find the data already in the `rtdists` package:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+data(rr98) # load data
+rr98 <- rr98[!rr98$outlier,]  # remove outliers, as in original paper
+rr98 <- rr98[rr98$block <= 8,]  # keep only the first 8 sessions
+rr98[,'accuracy'] = 0 # add a new column labelled as accuracy, where incorrect responses are coded as 0
+rr98[rr98$correct, 'accuracy'] = 1 # and correct responses are coded as 1
+head(rr98)
+```
+
+In the dataset there are 3 participants, who completed ~ 3800 trials in each condition (speed/accuracy), separated in 8 sessions.
+
+#### Exercises:
+
+* **A** First, let's focus on the **instruction manipulation**. Using the [summarise function](https://dplyr.tidyverse.org/reference/summarise.html) of the tidiverse package combined with the [group_by function](https://dplyr.tidyverse.org/reference/group_by.html), calculate the average performance (both RTs and accuracy) per subject and instruction level. What do you observe?
+
+* **B** Then, let's focus on the **brightness level manipulation**. Using the [stats_summary function in ggplot](https://ggplot2.tidyverse.org/reference/stat_summary.html), plot participants' average performance, separately per strength, instruction level and participant (preferabily using point plots with error bars). What do you observe?
+
+* **C** Finally, let's focus on the effects of the **session** on average performance. Using the [stats_summary function in ggplot](https://ggplot2.tidyverse.org/reference/stat_summary.html), plot participants' average performance, separately per session, instruction level and participant (preferabily using point plots with error bars). What do you observe?
+
+* **D** Add a new column to the dataset called `strength_binned`, in which the brightness levels are grouped into bins of equal lenght (similarly to the original paper). The idea is to have bins of brightness level with similar performance, to reduce noise in the data and to later be able to fit separate drift-rates per brightness level (33 would be a lot of drift-rates to fit).
+
+While the average is a good summary statistic for accuracy (since it's a binary variable), when we inspect response times the average is not enough. Infact, typical response times distributions are not Gaussian, but more similar to an [Inverse Gaussian](https://en.wikipedia.org/wiki/Inverse_Gaussian_distribution).
+Therefore, we typically inspect quantiles rather than just the average. Moreover, it can be that the response times distribution differ for different options. Therefore, we typically want to inspect RT distributions separately per choice (in this case, light vs. dark).
+
+* **E** Plot the RT as histograms, separately per participant (as row in the grid), instruction (as color filling), and as strenght bin (as column in the grid). What do you notice about the general shape of the distributions?
+
+* **F** Plot the .1, .3, .5, .7, .9 RT quantiles (y-axis), separately per strenght bin (x-axis), participant (as rows in the grid), and choice (as column in the grid). To make it more "readable", plot the 2 instructions separately. What is the main difference between the 2 instruction conditions?
+
+## Day 2. Setting up the model: Simulating data
+
+When fitting this data set, it is necessary to vary some of the DDM parameters across the manipulations. First of all, the brightness manipulation is most likely affecting the rate of evidence accumulation: the lower the brightness, the more "dark" decisions are made and the higher the brightness level, the more "light" decisions are made. The drift should be around 0 around the point in which the 2 underlying distributions mostly overlap, causing the performance to become worse (slower/less accurate).
+
+Secondly, the instruction is most likely affecting the threshold: when speed is stressed, decisions are faster and less accurate (lower threshold) and when accuracy is stressed, decisions are slower and more accurate (higher threshold).
+
+Therefore, we would like to set up a model with:
+
+* varying drift-rates based on brightness
+* saparate thresholds based on the instruction (speed/accuracy)
+
+Regarding varying the drift-rates we have multiple options:
+
+1. fitting separate drift-rates per `strength_binned` (as many parameters as the bins)
+2. fitting a model that maps `strenght` to the drift-rate, such as `drift = A + strength*B` (2 free parameters)
+
+I suggest the second one, since it is closer to what we would consider a [process model](https://link.springer.com/article/10.3758/s13423-020-01747-2), because it maps stimulus properties directly to cognitive processes, represented by the model's parameters.
+
+We can start from simulating a "fake" dataset, that resembles the one used in the original experiment:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+library(truncnorm) # install first if not already: install.packages("truncnorm")
+
+# simulate the stimuli
+create_stimuli <- function(n_trials, mean_1=12.375, mean_2=20.625, sd=6.1875) {
+  dist1 <- as.integer(rtruncnorm(n_trials, a=1, b=34, mean=mean_1, sd=sd)) # dark distribution
+  dist2 <- as.integer(rtruncnorm(n_trials, a=1, b=34, mean=mean_2, sd=sd)) # light distribution
+  source <- sample(c("light", "dark"), n_trials, replace = TRUE) # sample from one of them
+  
+  stimuli <- data.frame(dist1=dist1, dist2=dist2, source=source)
+
+  # add strength corresponding to the source distribution
+  stimuli$strength <- dist1
+  stimuli[stimuli$source == "light", "strength"] <- stimuli[stimuli$source == "light", "dist2"]
+
+  # add speed/accuracy manipulation
+  stimuli$instruction = rep(c("speed", "accuracy"), each=n_trials/2)
+  
+  # separate strength in bins (based on what you did in Day 1)
+  
+  # transform into factors
+  stimuli$instruction = as.factor(stimuli$instruction)
+  stimuli$strength = as.factor(stimuli$strength)
+  stimuli$source = as.factor(stimuli$source)
+
+  return(stimuli)
+}
+
+stimuli <- create_stimuli(1000) # simulate 1000 trials (for example)
+summary(stimuli)
+head(stimuli)
+```
+
+Also, we can first define the DM for 1 trial, where the lower boundary corresponds to "dark" and the upper boundary corresponds to "light":
+```{r}
+# simulate data from simple DM
+random_dm <- function(drift, threshold, ndt=.15, rel_sp=.5, noise_constant=1, dt=0.001, max_rt=10) {
+  
+  choice <- NA
+  rt <- NA
+  max_tsteps <- max_rt/dt
+  
+  # initialize the diffusion process
+  tstep <- 0
+  x <- rel_sp*threshold # accumulated evidence at t=tstep
+  
+  # start accumulating
+  while (x > 0 & x < threshold & tstep < max_tsteps) {
+    x <- x + rnorm(mean=drift*dt, sd=noise_constant*sqrt(dt), n=1)
+    tstep <- tstep + 1
+  }
+  if (x <= 0) {choice = "dark"} else if (x >=threshold) {choice = "light"}
+  rt = dt*tstep + ndt
+  return (c(choice, rt))
+}
+```
+
+Note that there are a bunch of default parameters, which we are not going to bother about at the moment. We are mostly interested in varying the drift-rate and threshold based on the `stimuli` data.frame. In particular, in varying the drift-rate based on `stimuli$strength` and the threshold based on `stimuli$instruction`.
+
+#### Exercises:
+
+* **A** Create 3 functions that simulate data of the DM with:
+  * varying drift-rates, called `random_dm_vd`
+  * varying thresholds, called `random_dm_vt`
+  * varying drift-rates and thresholds, called `random_dm_vd_vt`
+
+The functions should have the following structures:
+
+```
+random_dm_vt <- function (stimuli, drift, threshold_speed, threshold_accuracy, ndt) {
+  stimuli$drift = ...
+  stimuli$threshold = ...
+  stimuli$ndt = ndt
+  
+  stimuli[,c("choice", "rt")] = ...
+    
+  stimuli$accuracy = ...
+    
+  return(stimuli)
+}
+
+random_dm_vd <- function (stimuli, drift_int, drift_coeff, threshold, ndt) {
+  stimuli$drift = ...
+  stimuli$threshold = ...
+  stimuli$ndt = ndt
+  
+  stimuli[,c("choice", "rt")] = ...
+    
+  stimuli$accuracy = ...
+    
+  return(stimuli)
+}
+
+random_dm_vd_vt <- function (stimuli, drift_int, drift_coeff, threshold_speed, threshold_accuracy, ndt) {
+  stimuli$drift = ...
+  stimuli$threshold = ...
+  stimuli$ndt = ndt
+  
+  stimuli[,c("choice", "rt")] = ...
+    
+  stimuli$accuracy = ...
+    
+  return(stimuli)
+}
+```
+
+* **B** Simulate data for one subject, choosing plausible parameter combinations, and visually compare with the original dataset. You should make plots for both average rt and accuracy across bins of strength and instruction. Write a few notes about what do you observe for each of the 3 models.
+
+## Day 3. Parameter recovery and model fit
+
+#### Exercises:
+
+* **A** Write 3 likelihood functions, one for each generating model that we defined in Day 2. You should do this building on the [`ddiffusion` function](https://rdrr.io/cran/rtdists/man/Diffusion.html) from the `rtdists` package. The likelihood functions should have the following structure:
+
+```
+# Likelihood of the model with only varying drift
+log_likelihood_vd <- function(par, data, ll_threshold=1e-10) {
+  # par order: drift_int, drift_coeff, threshold, ndt
+  drift = ...
+  threshold = ...
+  ndt = ...
+  
+  density <- ddiffusion(...)
+  
+  density[density <= ll_threshold] = ll_threshold # put a threhsold on very low likelihoods for computability
+  
+  return(sum(log(density)))
+}
+
+# Likelihood of the model with only varying threhsold
+log_likelihood_vt <- function(par, data, ll_threshold=1e-10) {
+  # par order: drift, threshold_speed, threshold_accuracy, ndt
+  drift = ...
+  threshold = ...
+  ndt = ...
+  
+  density <- ddiffusion(...)
+  
+  density[density <= ll_threshold] = ll_threshold # put a threhsold on very low likelihoods for computability
+  
+  return(sum(log(density)))
+}
+
+log_likelihood_vd_vt <- function(par, data, ll_threshold=1e-10) {
+  # par order: drift_int, drift_coeff, threshold_speed, threshold_accuracy, ndt
+  drift = ...
+  threshold = ...
+  ndt = ...
+  
+  density <- ddiffusion(...)
+  
+  density[density <= ll_threshold] = ll_threshold # put a threhsold on very low likelihoods for computability
+  
+  return(sum(log(density)))
+}
+```
+
+* **B** Recover the parameters of the simulated data in Day 2, only for the full model. Are the parameters recovered correctly? 
+
+* **C** Fit the DM on the dataset, separately by subject. Save all the fitted parameters to the original dataset in separate columns, as well as the `fit$value`, which we will need for quantitative model comparison in Day 4.
+
+## Day 4. Assessing model fit and model comparison
+
+#### Exercises:
+
+* **A** Calculate the [BIC](https://en.wikipedia.org/wiki/Bayesian_information_criterion) for each model and subject. For this, you will need the `fit$value` that you should have saved in Day 3. Based on the BIC, which model was best?
+
+* **B** Generate a new dataset in which, using the `random_dm_vd_vt`, you generate trials based on the parameters that we estimated for each subject. Now, plot side by side the model's predictions  with the real data, across instruction levels and strength bins. What do you observe? How would you improve this model?

@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>Group project for the CMAH 2021</title>
+
+<script src="site_libs/header-attrs-2.7/header-attrs.js"></script>
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.tab('show');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">RLSSM R workshop</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="DM.html">DM</a>
+</li>
+<li>
+  <a href="RDM.html">RDM</a>
+</li>
+<li>
+  <a href="RLDM.html">RLDM</a>
+</li>
+<li>
+  <a href="RLRDM.html">RLRDM</a>
+</li>
+<li>
+  <a href="Fontanesi2019.html">Example 1</a>
+</li>
+<li>
+  <a href="group_project.html">Example 2</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Group project for the CMAH 2021</h1>
+
+</div>
+
+
+<p>In this project we will analyze the data from the first experiment of <a href="https://www.jstor.org/stable/pdf/40063319.pdf">Ratcliff and Rouder (1998)</a>.</p>
+<div id="day-1.-understanding-and-visualizing-the-data" class="section level2">
+<h2>Day 1. Understanding and visualizing the data</h2>
+<p>First, let’s clear our workspace and load a few packages:</p>
+<pre class="r"><code>rm(list = ls())
+library(rtdists)
+library(tidyverse)</code></pre>
+<p>In this experiment, participants made brightness discriminations (high vs. low) of different pixel arrays. The proportion of dark to white pixels (or the brightness level) was sampled in each trial from one of two different overlapping distributions, with different mean and equal SD (dark vs light) and was then discretized in steps of 33 (so that there were only 33 possible brightness levels in the experiment).</p>
+<p>The correct response was to match the distribution from which the brightness level <strong>was sampled from</strong> (labeled “source” in the dataset). Therefore, the noise in participants’ responses could come both from:</p>
+<ul>
+<li>noise in the stimulus (since the 2 distributions were overlapping)</li>
+<li>noise in the perception.</li>
+</ul>
+<p>There were 2 main manipulations:</p>
+<ul>
+<li>instructions in each block could bring more emphasis on either speed or accuracy</li>
+<li>the brightness level (labelled “strenght” in the dataset).</li>
+</ul>
+<p>We can find the data already in the <code>rtdists</code> package:</p>
+<pre class="r"><code>data(rr98) # load data
+rr98 &lt;- rr98[!rr98$outlier,]  # remove outliers, as in original paper
+rr98 &lt;- rr98[rr98$block &lt;= 8,]  # keep only the first 8 sessions
+rr98[,&#39;accuracy&#39;] = 0 # add a new column labelled as accuracy, where incorrect responses are coded as 0
+rr98[rr98$correct, &#39;accuracy&#39;] = 1 # and correct responses are coded as 1
+head(rr98)</code></pre>
+<pre><code>##   id session block trial instruction source strength response response_num correct    rt outlier accuracy
+## 1 jf       2     1    21    accuracy   dark        8     dark            1    TRUE 0.801   FALSE        1
+## 2 jf       2     1    22    accuracy   dark        7     dark            1    TRUE 0.680   FALSE        1
+## 3 jf       2     1    23    accuracy  light       19    light            2    TRUE 0.694   FALSE        1
+## 4 jf       2     1    24    accuracy   dark       21    light            2   FALSE 0.582   FALSE        0
+## 5 jf       2     1    25    accuracy  light       19     dark            1   FALSE 0.925   FALSE        0
+## 6 jf       2     1    26    accuracy   dark       10     dark            1    TRUE 0.605   FALSE        1</code></pre>
+<p>In the dataset there are 3 participants, who completed ~ 3800 trials in each condition (speed/accuracy), separated in 8 sessions.</p>
+<div id="exercises" class="section level4">
+<h4>Exercises:</h4>
+<ul>
+<li><p><strong>A</strong> First, let’s focus on the <strong>instruction manipulation</strong>. Using the <a href="https://dplyr.tidyverse.org/reference/summarise.html">summarise function</a> of the tidiverse package combined with the <a href="https://dplyr.tidyverse.org/reference/group_by.html">group_by function</a>, calculate the average performance (both RTs and accuracy) per subject and instruction level. What do you observe?</p></li>
+<li><p><strong>B</strong> Then, let’s focus on the <strong>brightness level manipulation</strong>. Using the <a href="https://ggplot2.tidyverse.org/reference/stat_summary.html">stats_summary function in ggplot</a>, plot participants’ average performance, separately per strength, instruction level and participant (preferabily using point plots with error bars). What do you observe?</p></li>
+<li><p><strong>C</strong> Finally, let’s focus on the effects of the <strong>session</strong> on average performance. Using the <a href="https://ggplot2.tidyverse.org/reference/stat_summary.html">stats_summary function in ggplot</a>, plot participants’ average performance, separately per session, instruction level and participant (preferabily using point plots with error bars). What do you observe?</p></li>
+<li><p><strong>D</strong> Add a new column to the dataset called <code>strength_binned</code>, in which the brightness levels are grouped into bins of equal lenght (similarly to the original paper). The idea is to have bins of brightness level with similar performance, to reduce noise in the data and to later be able to fit separate drift-rates per brightness level (33 would be a lot of drift-rates to fit).</p></li>
+</ul>
+<p>While the average is a good summary statistic for accuracy (since it’s a binary variable), when we inspect response times the average is not enough. Infact, typical response times distributions are not Gaussian, but more similar to an <a href="https://en.wikipedia.org/wiki/Inverse_Gaussian_distribution">Inverse Gaussian</a>. Therefore, we typically inspect quantiles rather than just the average. Moreover, it can be that the response times distribution differ for different options. Therefore, we typically want to inspect RT distributions separately per choice (in this case, light vs. dark).</p>
+<ul>
+<li><p><strong>E</strong> Plot the RT as histograms, separately per participant (as row in the grid), instruction (as color filling), and as strenght bin (as column in the grid). What do you notice about the general shape of the distributions?</p></li>
+<li><p><strong>F</strong> Plot the .1, .3, .5, .7, .9 RT quantiles (y-axis), separately per strenght bin (x-axis), participant (as rows in the grid), and choice (as column in the grid). To make it more “readable”, plot the 2 instructions separately. What is the main difference between the 2 instruction conditions?</p></li>
+</ul>
+</div>
+</div>
+<div id="day-2.-setting-up-the-model-simulating-data" class="section level2">
+<h2>Day 2. Setting up the model: Simulating data</h2>
+<p>When fitting this data set, it is necessary to vary some of the DDM parameters across the manipulations. First of all, the brightness manipulation is most likely affecting the rate of evidence accumulation: the lower the brightness, the more “dark” decisions are made and the higher the brightness level, the more “light” decisions are made. The drift should be around 0 around the point in which the 2 underlying distributions mostly overlap, causing the performance to become worse (slower/less accurate).</p>
+<p>Secondly, the instruction is most likely affecting the threshold: when speed is stressed, decisions are faster and less accurate (lower threshold) and when accuracy is stressed, decisions are slower and more accurate (higher threshold).</p>
+<p>Therefore, we would like to set up a model with:</p>
+<ul>
+<li>varying drift-rates based on brightness</li>
+<li>saparate thresholds based on the instruction (speed/accuracy)</li>
+</ul>
+<p>Regarding varying the drift-rates we have multiple options:</p>
+<ol style="list-style-type: decimal">
+<li>fitting separate drift-rates per <code>strength_binned</code> (as many parameters as the bins)</li>
+<li>fitting a model that maps <code>strenght</code> to the drift-rate, such as <code>drift = A + strength*B</code> (2 free parameters)</li>
+</ol>
+<p>I suggest the second one, since it is closer to what we would consider a <a href="https://link.springer.com/article/10.3758/s13423-020-01747-2">process model</a>, because it maps stimulus properties directly to cognitive processes, represented by the model’s parameters.</p>
+<p>We can start from simulating a “fake” dataset, that resembles the one used in the original experiment:</p>
+<pre class="r"><code>library(truncnorm) # install first if not already: install.packages(&quot;truncnorm&quot;)
+
+# simulate the stimuli
+create_stimuli &lt;- function(n_trials, mean_1=12.375, mean_2=20.625, sd=6.1875) {
+  dist1 &lt;- as.integer(rtruncnorm(n_trials, a=1, b=34, mean=mean_1, sd=sd)) # dark distribution
+  dist2 &lt;- as.integer(rtruncnorm(n_trials, a=1, b=34, mean=mean_2, sd=sd)) # light distribution
+  source &lt;- sample(c(&quot;light&quot;, &quot;dark&quot;), n_trials, replace = TRUE) # sample from one of them
+  
+  stimuli &lt;- data.frame(dist1=dist1, dist2=dist2, source=source)
+
+  # add strength corresponding to the source distribution
+  stimuli$strength &lt;- dist1
+  stimuli[stimuli$source == &quot;light&quot;, &quot;strength&quot;] &lt;- stimuli[stimuli$source == &quot;light&quot;, &quot;dist2&quot;]
+
+  # add speed/accuracy manipulation
+  stimuli$instruction = rep(c(&quot;speed&quot;, &quot;accuracy&quot;), each=n_trials/2)
+  
+  # separate strength in bins (based on what you did in Day 1)
+  
+  # transform into factors
+  stimuli$instruction = as.factor(stimuli$instruction)
+  stimuli$strength = as.factor(stimuli$strength)
+  stimuli$source = as.factor(stimuli$source)
+
+  return(stimuli)
+}
+
+stimuli &lt;- create_stimuli(1000) # simulate 1000 trials (for example)
+summary(stimuli)</code></pre>
+<pre><code>##      dist1           dist2         source       strength     instruction 
+##  Min.   : 1.00   Min.   : 3.00   dark :514   11     : 61   accuracy:500  
+##  1st Qu.: 8.00   1st Qu.:16.00   light:486   15     : 59   speed   :500  
+##  Median :12.00   Median :20.00               16     : 57                 
+##  Mean   :12.32   Mean   :19.57               18     : 55                 
+##  3rd Qu.:16.00   3rd Qu.:24.00               12     : 49                 
+##  Max.   :31.00   Max.   :33.00               14     : 47                 
+##                                              (Other):672</code></pre>
+<pre class="r"><code>head(stimuli)</code></pre>
+<pre><code>##   dist1 dist2 source strength instruction
+## 1     9    18   dark        9       speed
+## 2    18    14   dark       18       speed
+## 3    15    21   dark       15       speed
+## 4    24    24   dark       24       speed
+## 5    19    10  light       10       speed
+## 6    17    21   dark       17       speed</code></pre>
+<p>Also, we can first define the DM for 1 trial, where the lower boundary corresponds to “dark” and the upper boundary corresponds to “light”:</p>
+<pre class="r"><code># simulate data from simple DM
+random_dm &lt;- function(drift, threshold, ndt=.15, rel_sp=.5, noise_constant=1, dt=0.001, max_rt=10) {
+  
+  choice &lt;- NA
+  rt &lt;- NA
+  max_tsteps &lt;- max_rt/dt
+  
+  # initialize the diffusion process
+  tstep &lt;- 0
+  x &lt;- rel_sp*threshold # accumulated evidence at t=tstep
+  
+  # start accumulating
+  while (x &gt; 0 &amp; x &lt; threshold &amp; tstep &lt; max_tsteps) {
+    x &lt;- x + rnorm(mean=drift*dt, sd=noise_constant*sqrt(dt), n=1)
+    tstep &lt;- tstep + 1
+  }
+  if (x &lt;= 0) {choice = &quot;dark&quot;} else if (x &gt;=threshold) {choice = &quot;light&quot;}
+  rt = dt*tstep + ndt
+  return (c(choice, rt))
+}</code></pre>
+<p>Note that there are a bunch of default parameters, which we are not going to bother about at the moment. We are mostly interested in varying the drift-rate and threshold based on the <code>stimuli</code> data.frame. In particular, in varying the drift-rate based on <code>stimuli$strength</code> and the threshold based on <code>stimuli$instruction</code>.</p>
+<div id="exercises-1" class="section level4">
+<h4>Exercises:</h4>
+<ul>
+<li><strong>A</strong> Create 3 functions that simulate data of the DM with:
+<ul>
+<li>varying drift-rates, called <code>random_dm_vd</code></li>
+<li>varying thresholds, called <code>random_dm_vt</code></li>
+<li>varying drift-rates and thresholds, called <code>random_dm_vd_vt</code></li>
+</ul></li>
+</ul>
+<p>The functions should have the following structures:</p>
+<pre><code>random_dm_vt &lt;- function (stimuli, drift, threshold_speed, threshold_accuracy, ndt) {
+  stimuli$drift = ...
+  stimuli$threshold = ...
+  stimuli$ndt = ndt
+  
+  stimuli[,c(&quot;choice&quot;, &quot;rt&quot;)] = ...
+    
+  stimuli$accuracy = ...
+    
+  return(stimuli)
+}
+
+random_dm_vd &lt;- function (stimuli, drift_int, drift_coeff, threshold, ndt) {
+  stimuli$drift = ...
+  stimuli$threshold = ...
+  stimuli$ndt = ndt
+  
+  stimuli[,c(&quot;choice&quot;, &quot;rt&quot;)] = ...
+    
+  stimuli$accuracy = ...
+    
+  return(stimuli)
+}
+
+random_dm_vd_vt &lt;- function (stimuli, drift_int, drift_coeff, threshold_speed, threshold_accuracy, ndt) {
+  stimuli$drift = ...
+  stimuli$threshold = ...
+  stimuli$ndt = ndt
+  
+  stimuli[,c(&quot;choice&quot;, &quot;rt&quot;)] = ...
+    
+  stimuli$accuracy = ...
+    
+  return(stimuli)
+}</code></pre>
+<ul>
+<li><strong>B</strong> Simulate data for one subject, choosing plausible parameter combinations, and visually compare with the original dataset. You should make plots for both average rt and accuracy across bins of strength and instruction. Write a few notes about what do you observe for each of the 3 models.</li>
+</ul>
+</div>
+</div>
+<div id="day-3.-parameter-recovery-and-model-fit" class="section level2">
+<h2>Day 3. Parameter recovery and model fit</h2>
+<div id="exercises-2" class="section level4">
+<h4>Exercises:</h4>
+<ul>
+<li><strong>A</strong> Write 3 likelihood functions, one for each generating model that we defined in Day 2. You should do this building on the <a href="https://rdrr.io/cran/rtdists/man/Diffusion.html"><code>ddiffusion</code> function</a> from the <code>rtdists</code> package. The likelihood functions should have the following structure:</li>
+</ul>
+<pre><code># Likelihood of the model with only varying drift
+log_likelihood_vd &lt;- function(par, data, ll_threshold=1e-10) {
+  # par order: drift_int, drift_coeff, threshold, ndt
+  drift = ...
+  threshold = ...
+  ndt = ...
+  
+  density &lt;- ddiffusion(...)
+  
+  density[density &lt;= ll_threshold] = ll_threshold # put a threhsold on very low likelihoods for computability
+  
+  return(sum(log(density)))
+}
+
+# Likelihood of the model with only varying threhsold
+log_likelihood_vt &lt;- function(par, data, ll_threshold=1e-10) {
+  # par order: drift, threshold_speed, threshold_accuracy, ndt
+  drift = ...
+  threshold = ...
+  ndt = ...
+  
+  density &lt;- ddiffusion(...)
+  
+  density[density &lt;= ll_threshold] = ll_threshold # put a threhsold on very low likelihoods for computability
+  
+  return(sum(log(density)))
+}
+
+log_likelihood_vd_vt &lt;- function(par, data, ll_threshold=1e-10) {
+  # par order: drift_int, drift_coeff, threshold_speed, threshold_accuracy, ndt
+  drift = ...
+  threshold = ...
+  ndt = ...
+  
+  density &lt;- ddiffusion(...)
+  
+  density[density &lt;= ll_threshold] = ll_threshold # put a threhsold on very low likelihoods for computability
+  
+  return(sum(log(density)))
+}</code></pre>
+<ul>
+<li><p><strong>B</strong> Recover the parameters of the simulated data in Day 2, only for the full model. Are the parameters recovered correctly?</p></li>
+<li><p><strong>C</strong> Fit the DM on the dataset, separately by subject. Save all the fitted parameters to the original dataset in separate columns, as well as the <code>fit$value</code>, which we will need for quantitative model comparison in Day 4.</p></li>
+</ul>
+</div>
+</div>
+<div id="day-4.-assessing-model-fit-and-model-comparison" class="section level2">
+<h2>Day 4. Assessing model fit and model comparison</h2>
+<div id="exercises-3" class="section level4">
+<h4>Exercises:</h4>
+<ul>
+<li><p><strong>A</strong> Calculate the <a href="https://en.wikipedia.org/wiki/Bayesian_information_criterion">BIC</a> for each model and subject. For this, you will need the <code>fit$value</code> that you should have saved in Day 3. Based on the BIC, which model was best?</p></li>
+<li><p><strong>B</strong> Generate a new dataset in which, using the <code>random_dm_vd_vt</code>, you generate trials based on the parameters that we estimated for each subject. Now, plot side by side the model’s predictions with the real data, across instruction levels and strength bins. What do you observe? How would you improve this model?</p></li>
+</ul>
+</div>
+</div>
+
+
+
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
