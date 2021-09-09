@@ -32,7 +32,7 @@ ggplot(data = sim_path, aes(x = time, y = dv, color=factor(accumulator)))+
 # fit hierarchical DM on real data
 data <- read.csv('data/fontanesi2019.csv')
 data <- select(data, -X) # drop pandas index column
-data <- data[data$participant < 11,] # select only 10 participants
+data <- data[data$participant < 6,] # select only 5 participants
 data$accuracy_recoded <- data$accuracy
 data[data$accuracy==0, "accuracy_recoded"] <- -1
 
@@ -77,3 +77,31 @@ fit1 <- stan(
   iter = 3000,                                       # total number of iterations per chain
   cores = 2                                          # number of cores (could use one per chain)
 )
+
+print(fit1, pars = c("mu_drift[1]", "mu_drift[2]", "mu_drift[3]", "mu_drift[4]",
+                     "sd_drift[1]", "sd_drift[2]", "sd_drift[3]", "sd_drift[4]",
+                     "mu_threshold[1]", "mu_threshold[2]", "mu_threshold[3]", "mu_threshold[4]",
+                     "sd_threshold[1]", "sd_threshold[2]", "sd_threshold[3]", "sd_threshold[4]",
+                     "mu_ndt", "sd_ndt"))
+
+posterior <- as.matrix(fit1)
+
+plot_title <- ggtitle("Posterior distributions mu drift-rate per condition",
+                      "with medians and 95% intervals")
+mcmc_areas(posterior,
+           pars = c("mu_drift[1]", "mu_drift[2]", "mu_drift[3]", "mu_drift[4]"),
+           prob = 0.95) + plot_title
+
+plot_title <- ggtitle("Posterior distributions mu threshold per condition",
+                      "with medians and 95% intervals")
+
+mcmc_areas(posterior,
+           pars = c("mu_threshold[1]", "mu_threshold[2]", "mu_threshold[3]", "mu_threshold[4]"),
+           prob = 0.95) + plot_title
+
+plot_title <- ggtitle("Posterior distributions individual NDT parameters",
+                      "with medians and 95% intervals")
+
+mcmc_areas(posterior,
+           pars = c("ndt_sbj[1]", "ndt_sbj[2]", "ndt_sbj[3]", "ndt_sbj[4]"),
+           prob = 0.95) + plot_title

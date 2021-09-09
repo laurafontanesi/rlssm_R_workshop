@@ -16,7 +16,7 @@ First, we can load the data of [our study from 2019](https://link.springer.com/a
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 data <- read.csv('data/fontanesi2019.csv')
 data <- select(data, -X) # drop pandas index column
-data <- data[data$participant < 11,] # select only 10 participants
+data <- data[data$participant < 6,] # select only 5 participants otherwise it takes too long
 # add accuracy for stan data
 data$accuracy_recoded <- data$accuracy
 data[data$accuracy==0, "accuracy_recoded"] <- -1
@@ -61,3 +61,56 @@ sim_data_for_stan <- list(
   starting_point = 0.5
 )
 ```
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+fit1 <- stan(
+  file = "stan_models/hierDDM_cond.stan",            # Stan program
+  data = sim_data_for_stan,                          # named list of data
+  chains = 2,                                        # number of Markov chains
+  warmup = 1000,                                     # number of warmup iterations per chain
+  iter = 3000,                                       # total number of iterations per chain
+  cores = 2                                          # number of cores (could use one per chain)
+)
+```
+
+We can summarize the group parameters:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+print(fit1, pars = c("mu_drift[1]", "mu_drift[2]", "mu_drift[3]", "mu_drift[4]",
+                     "sd_drift[1]", "sd_drift[2]", "sd_drift[3]", "sd_drift[4]",
+                     "mu_threshold[1]", "mu_threshold[2]", "mu_threshold[3]", "mu_threshold[4]",
+                     "sd_threshold[1]", "sd_threshold[2]", "sd_threshold[3]", "sd_threshold[4]",
+                     "mu_ndt", "sd_ndt"))
+```
+
+Compare the group mean of the drift-rates across conditions:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+posterior <- as.matrix(fit1)
+
+plot_title <- ggtitle("Posterior distributions mu drift-rate per condition",
+                      "with medians and 95% intervals")
+mcmc_areas(posterior,
+           pars = c("mu_drift[1]", "mu_drift[2]", "mu_drift[3]", "mu_drift[4]"),
+           prob = 0.95) + plot_title
+```
+
+As well as the thresholds:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+plot_title <- ggtitle("Posterior distributions mu threshold per condition",
+                      "with medians and 95% intervals")
+
+mcmc_areas(posterior,
+           pars = c("mu_threshold[1]", "mu_threshold[2]", "mu_threshold[3]", "mu_threshold[4]"),
+           prob = 0.95) + plot_title
+```
+
+And for example we can compare participants' NDT parameters:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+plot_title <- ggtitle("Posterior distributions individual NDT parameters",
+                      "with medians and 95% intervals")
+
+mcmc_areas(posterior,
+           pars = c("ndt_sbj[1]", "ndt_sbj[2]", "ndt_sbj[3]", "ndt_sbj[4]", "ndt_sbj[5]"),
+           prob = 0.95) + plot_title
+```
+
+As we expected, the drift-rates for the easier conditions tend to be higher, and the thresholds for the high-value pairs tends to be lower.

@@ -285,7 +285,7 @@ library(bayesplot)</code></pre>
 <p>First, we can load the data of <a href="https://link.springer.com/article/10.3758/s13423-018-1554-2">our study from 2019</a>:</p>
 <pre class="r"><code>data &lt;- read.csv(&#39;data/fontanesi2019.csv&#39;)
 data &lt;- select(data, -X) # drop pandas index column
-data &lt;- data[data$participant &lt; 11,] # select only 10 participants
+data &lt;- data[data$participant &lt; 6,] # select only 5 participants otherwise it takes too long
 # add accuracy for stan data
 data$accuracy_recoded &lt;- data$accuracy
 data[data$accuracy==0, &quot;accuracy_recoded&quot;] &lt;- -1
@@ -311,7 +311,7 @@ data[(data$inc_option == 3)&amp;(data$cor_option == 4),&quot;condition&quot;] &l
 <p><img src="Fontanesi2019_files/figure-html/unnamed-chunk-3-2.png" width="672" /></p>
 <p>Now we can prepare the data for <code>stan</code>. Note that this is a bit different for hierarchical models, and also when we want to fit separate parameters per condition:</p>
 <pre class="r"><code>unique(data$participant)</code></pre>
-<pre><code>##  [1]  1  2  3  4  5  6  7  8  9 10</code></pre>
+<pre><code>## [1] 1 2 3 4 5</code></pre>
 <pre class="r"><code>sim_data_for_stan &lt;- list(
   N = dim(data)[1],
   L = length(unique(data$participant)),
@@ -322,6 +322,95 @@ data[(data$inc_option == 3)&amp;(data$cor_option == 4),&quot;condition&quot;] &l
   rt = data$rt,
   starting_point = 0.5
 )</code></pre>
+<pre class="r"><code>fit1 &lt;- stan(
+  file = &quot;stan_models/hierDDM_cond.stan&quot;,            # Stan program
+  data = sim_data_for_stan,                          # named list of data
+  chains = 2,                                        # number of Markov chains
+  warmup = 1000,                                     # number of warmup iterations per chain
+  iter = 3000,                                       # total number of iterations per chain
+  cores = 2                                          # number of cores (could use one per chain)
+)</code></pre>
+<pre><code>## Running /Library/Frameworks/R.framework/Resources/bin/R CMD SHLIB foo.c
+## clang -mmacosx-version-min=10.13 -I&quot;/Library/Frameworks/R.framework/Resources/include&quot; -DNDEBUG   -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/Rcpp/include/&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/unsupported&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/BH/include&quot; -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/StanHeaders/include/src/&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/StanHeaders/include/&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppParallel/include/&quot;  -I&quot;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/rstan/include&quot; -DEIGEN_NO_DEBUG  -DBOOST_DISABLE_ASSERTS  -DBOOST_PENDING_INTEGER_LOG2_HPP  -DSTAN_THREADS  -DBOOST_NO_AUTO_PTR  -include &#39;/Library/Frameworks/R.framework/Versions/4.0/Resources/library/StanHeaders/include/stan/math/prim/mat/fun/Eigen.hpp&#39;  -D_REENTRANT -DRCPP_PARALLEL_USE_TBB=1   -I/usr/local/include   -fPIC  -Wall -g -O2  -c foo.c -o foo.o
+## In file included from &lt;built-in&gt;:1:
+## In file included from /Library/Frameworks/R.framework/Versions/4.0/Resources/library/StanHeaders/include/stan/math/prim/mat/fun/Eigen.hpp:13:
+## In file included from /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/Dense:1:
+## In file included from /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/Core:88:
+## /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/src/Core/util/Macros.h:613:1: error: unknown type name &#39;namespace&#39;
+## namespace Eigen {
+## ^
+## /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/src/Core/util/Macros.h:613:16: error: expected &#39;;&#39; after top level declarator
+## namespace Eigen {
+##                ^
+##                ;
+## In file included from &lt;built-in&gt;:1:
+## In file included from /Library/Frameworks/R.framework/Versions/4.0/Resources/library/StanHeaders/include/stan/math/prim/mat/fun/Eigen.hpp:13:
+## In file included from /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/Dense:1:
+## /Library/Frameworks/R.framework/Versions/4.0/Resources/library/RcppEigen/include/Eigen/Core:96:10: fatal error: &#39;complex&#39; file not found
+## #include &lt;complex&gt;
+##          ^~~~~~~~~
+## 3 errors generated.
+## make: *** [foo.o] Error 1</code></pre>
+<p>We can summarize the group parameters:</p>
+<pre class="r"><code>print(fit1, pars = c(&quot;mu_drift[1]&quot;, &quot;mu_drift[2]&quot;, &quot;mu_drift[3]&quot;, &quot;mu_drift[4]&quot;,
+                     &quot;sd_drift[1]&quot;, &quot;sd_drift[2]&quot;, &quot;sd_drift[3]&quot;, &quot;sd_drift[4]&quot;,
+                     &quot;mu_threshold[1]&quot;, &quot;mu_threshold[2]&quot;, &quot;mu_threshold[3]&quot;, &quot;mu_threshold[4]&quot;,
+                     &quot;sd_threshold[1]&quot;, &quot;sd_threshold[2]&quot;, &quot;sd_threshold[3]&quot;, &quot;sd_threshold[4]&quot;,
+                     &quot;mu_ndt&quot;, &quot;sd_ndt&quot;))</code></pre>
+<pre><code>## Inference for Stan model: hierDDM_cond.
+## 2 chains, each with iter=3000; warmup=1000; thin=1; 
+## post-warmup draws per chain=2000, total post-warmup draws=4000.
+## 
+##                 mean se_mean   sd  2.5%  25%  50%  75% 97.5% n_eff Rhat
+## mu_drift[1]     0.69    0.01 0.38 -0.11 0.49 0.69 0.90  1.47  1440 1.00
+## mu_drift[2]     1.44    0.01 0.28  0.94 1.31 1.44 1.58  1.97  1338 1.00
+## mu_drift[3]     1.16    0.01 0.30  0.53 1.01 1.17 1.32  1.79  1804 1.00
+## mu_drift[4]     0.56    0.00 0.17  0.19 0.47 0.56 0.65  0.90  1628 1.00
+## sd_drift[1]     0.78    0.01 0.44  0.31 0.50 0.66 0.93  1.97  1279 1.00
+## sd_drift[2]     0.49    0.01 0.37  0.09 0.27 0.40 0.60  1.41   971 1.00
+## sd_drift[3]     0.61    0.01 0.38  0.19 0.37 0.52 0.73  1.56  1430 1.00
+## sd_drift[4]     0.28    0.01 0.24  0.02 0.12 0.22 0.36  0.86  1121 1.00
+## mu_threshold[1] 1.78    0.00 0.10  1.61 1.73 1.78 1.84  1.96  2151 1.00
+## mu_threshold[2] 1.81    0.01 0.19  1.44 1.72 1.81 1.91  2.18  1321 1.00
+## mu_threshold[3] 1.51    0.01 0.44  0.62 1.29 1.51 1.73  2.40  1272 1.00
+## mu_threshold[4] 1.42    0.01 0.30  0.86 1.29 1.42 1.55  1.96   751 1.00
+## sd_threshold[1] 0.11    0.00 0.13  0.00 0.04 0.08 0.14  0.41  1661 1.00
+## sd_threshold[2] 0.31    0.01 0.26  0.02 0.15 0.26 0.40  0.93  1116 1.00
+## sd_threshold[3] 0.85    0.01 0.53  0.32 0.53 0.71 0.98  2.23  1346 1.00
+## sd_threshold[4] 0.50    0.01 0.36  0.18 0.30 0.41 0.58  1.37   829 1.00
+## mu_ndt          0.13    0.00 0.12 -0.11 0.06 0.13 0.19  0.37  1143 1.00
+## sd_ndt          0.25    0.00 0.12  0.12 0.17 0.22 0.30  0.57  1061 1.01
+## 
+## Samples were drawn using NUTS(diag_e) at Thu Sep  9 13:34:49 2021.
+## For each parameter, n_eff is a crude measure of effective sample size,
+## and Rhat is the potential scale reduction factor on split chains (at 
+## convergence, Rhat=1).</code></pre>
+<p>Compare the group mean of the drift-rates across conditions:</p>
+<pre class="r"><code>posterior &lt;- as.matrix(fit1)
+
+plot_title &lt;- ggtitle(&quot;Posterior distributions mu drift-rate per condition&quot;,
+                      &quot;with medians and 95% intervals&quot;)
+mcmc_areas(posterior,
+           pars = c(&quot;mu_drift[1]&quot;, &quot;mu_drift[2]&quot;, &quot;mu_drift[3]&quot;, &quot;mu_drift[4]&quot;),
+           prob = 0.95) + plot_title</code></pre>
+<p><img src="Fontanesi2019_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<p>As well as the thresholds:</p>
+<pre class="r"><code>plot_title &lt;- ggtitle(&quot;Posterior distributions mu threshold per condition&quot;,
+                      &quot;with medians and 95% intervals&quot;)
+
+mcmc_areas(posterior,
+           pars = c(&quot;mu_threshold[1]&quot;, &quot;mu_threshold[2]&quot;, &quot;mu_threshold[3]&quot;, &quot;mu_threshold[4]&quot;),
+           prob = 0.95) + plot_title</code></pre>
+<p><img src="Fontanesi2019_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<p>And for example we can compare participants’ NDT parameters:</p>
+<pre class="r"><code>plot_title &lt;- ggtitle(&quot;Posterior distributions individual NDT parameters&quot;,
+                      &quot;with medians and 95% intervals&quot;)
+
+mcmc_areas(posterior,
+           pars = c(&quot;ndt_sbj[1]&quot;, &quot;ndt_sbj[2]&quot;, &quot;ndt_sbj[3]&quot;, &quot;ndt_sbj[4]&quot;, &quot;ndt_sbj[5]&quot;),
+           prob = 0.95) + plot_title</code></pre>
+<p><img src="Fontanesi2019_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+<p>As we expected, the drift-rates for the easier conditions tend to be higher, and the thresholds for the high-value pairs tends to be lower.</p>
 
 
 
