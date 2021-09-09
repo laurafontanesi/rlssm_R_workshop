@@ -2,11 +2,21 @@
 title: "Fontanesi and colleagues 2019"
 ---
 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+rm(list = ls())
+library(tidyverse)
+library(dfoptim)
+library(rtdists)
+library(rstan)
+library(bayesplot)
+```
+
 First, we can load the data of [our study from 2019](https://link.springer.com/article/10.3758/s13423-018-1554-2):
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 data <- read.csv('data/fontanesi2019.csv')
 data <- select(data, -X) # drop pandas index column
+data <- data[data$participant < 11,] # select only 10 participants
 # add accuracy for stan data
 data$accuracy_recoded <- data$accuracy
 data[data$accuracy==0, "accuracy_recoded"] <- -1

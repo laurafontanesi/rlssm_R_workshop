@@ -32,6 +32,7 @@ ggplot(data = sim_path, aes(x = time, y = dv, color=factor(accumulator)))+
 # fit hierarchical DM on real data
 data <- read.csv('data/fontanesi2019.csv')
 data <- select(data, -X) # drop pandas index column
+data <- data[data$participant < 11] # select only 10 participants
 data$accuracy_recoded <- data$accuracy
 data[data$accuracy==0, "accuracy_recoded"] <- -1
 
