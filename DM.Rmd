@@ -193,6 +193,8 @@ mcmc_areas(posterior,
            prob = 0.95) + plot_title
 ```
 
+## DM with across-trial variability in the drift-rate
+
 Let's now simulate data with across-trial variability in the drift-rate:
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 sim_data3 <- rdiffusion(n=1000, a=1.5, v=.7, t0=.23, sv=1)
