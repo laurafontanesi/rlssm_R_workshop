@@ -2,4 +2,64 @@
 title: "Fontanesi and colleagues 2019"
 ---
 
-Still empty.
+First, we can load the data of [our study from 2019](https://link.springer.com/article/10.3758/s13423-018-1554-2):
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+data <- read.csv('data/fontanesi2019.csv')
+data <- select(data, -X) # drop pandas index column
+# add accuracy for stan data
+data$accuracy_recoded <- data$accuracy
+data[data$accuracy==0, "accuracy_recoded"] <- -1
+
+# add conditions based on choice pairs
+data[(data$inc_option == 1)&(data$cor_option == 2),"condition_label"] <- "difficult_low"
+data[(data$inc_option == 1)&(data$cor_option == 3),"condition_label"] <- "easy_low"
+data[(data$inc_option == 2)&(data$cor_option == 4),"condition_label"] <- "easy_high"
+data[(data$inc_option == 3)&(data$cor_option == 4),"condition_label"] <- "difficult_high"
+
+data[(data$inc_option == 1)&(data$cor_option == 2),"condition"] <- 1
+data[(data$inc_option == 1)&(data$cor_option == 3),"condition"] <- 2
+data[(data$inc_option == 2)&(data$cor_option == 4),"condition"] <- 3
+data[(data$inc_option == 3)&(data$cor_option == 4),"condition"] <- 4
+```
+
+The first model we can try to fit, is a diffusion model (DM) in which we vary drift-rate and threshold based on the condition (or choice pair). The DM assumptions are actually violated in this task: when we fit the DM without learning component, we assume that the trials are somewhat independent. While this is rarely the case even in non-learning tasks (e.g., because of post-error effects, practice effects) this is clearly not the case in learning tasks. However, this can give us a good idea of context-dependent effects on the RT distributions such as the ones we observed in the following plots:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+ggplot(data = data, aes(x = condition, y = accuracy, fill=condition_label))+
+  stat_summary(fun = "mean", geom="bar", position = 'dodge') +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",  size=.2, width=.9, position = 'dodge')
+
+ggplot(data = data, aes(x = condition, y = rt, fill=condition_label))+
+  stat_summary(fun = "mean", geom="bar", position = 'dodge') +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",  size=.2, width=.9, position = 'dodge')
+```
+
+Now we can prepare the data for `stan`. Note that this is a bit different for hierarchical models, and also when we want to fit separate parameters per condition:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+unique(data$participant)
+
+sim_data_for_stan <- list(
+  N = dim(data)[1],
+  L = length(unique(data$participant)),
+  C = 4,
+  condition = data$condition,
+  participant = data$participant,
+  accuracy = data$accuracy_recoded,
+  rt = data$rt,
+  starting_point = 0.5
+)
+```
+
+And start sampling...
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+fit1 <- stan(
+  file = "stan_models/hierDDM_cond.stan",            # Stan program
+  data = sim_data_for_stan,                          # named list of data
+  chains = 2,                                        # number of Markov chains
+  warmup = 1000,                                     # number of warmup iterations per chain
+  iter = 3000,                                       # total number of iterations per chain
+  cores = 2                                          # number of cores (could use one per chain)
+)
+```
