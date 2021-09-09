@@ -190,13 +190,13 @@ sim_data$trial_bin <- cut(sim_data$trial,
                           breaks = seq(min(sim_data$trial), max(sim_data$trial), length.out=7),
                           include.lowest = TRUE)
 
-ggplot(data = sim_data, aes(x = trial_type, y = rt, fill=trial_type))+
-  stat_summary(fun = "mean", geom="bar", position = 'dodge') +
-  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",  size=.2, width=.9, position = 'dodge')
+ggplot(data = sim_data, aes(x = trial_type, y = rt,  color=trial_type))+
+  stat_summary(fun = "mean", geom="point", size=4) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",  size=.3, width=.3)
 
-ggplot(data = sim_data, aes(x = trial_type, y = accuracy, fill=trial_type))+
-  stat_summary(fun = "mean", geom="bar", position = 'dodge') +
-  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",  size=.2, width=.9, position = 'dodge')
+ggplot(data = sim_data, aes(x = trial_type, y = accuracy, color=trial_type))+
+  stat_summary(fun = "mean", geom="point", size=4) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",  size=.3, width=.3)
 ```
 
 While we kept both the threshold and ndt fixed, the drift-rates evolves with learning:
