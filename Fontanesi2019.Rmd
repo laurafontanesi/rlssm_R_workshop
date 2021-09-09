@@ -37,11 +37,11 @@ The first model we can try to fit, is a diffusion model (DM) in which we vary dr
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 ggplot(data = data, aes(x = condition, y = accuracy, color=condition_label))+
-  stat_summary(fun = "mean", geom="point",  size=5) +
+  stat_summary(fun = "mean", geom="point",  size=4) +
   stat_summary(fun.data = mean_cl_normal, geom = "errorbar",  size=.5, width=.3)
 
 ggplot(data = data, aes(x = condition, y = rt, color=condition_label))+
-  stat_summary(fun = "mean", geom="point",  size=5) +
+  stat_summary(fun = "mean", geom="point",  size=4) +
   stat_summary(fun.data = mean_cl_normal, geom = "errorbar",  size=.5, width=.3)
 ```
 
