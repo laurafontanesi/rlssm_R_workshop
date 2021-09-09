@@ -36,13 +36,13 @@ data[(data$inc_option == 3)&(data$cor_option == 4),"condition"] <- 4
 The first model we can try to fit, is a diffusion model (DM) in which we vary drift-rate and threshold based on the condition (or choice pair). The DM assumptions are actually violated in this task: when we fit the DM without learning component, we assume that the trials are somewhat independent. While this is rarely the case even in non-learning tasks (e.g., because of post-error effects, practice effects) this is clearly not the case in learning tasks. However, this can give us a good idea of context-dependent effects on the RT distributions such as the ones we observed in the following plots:
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
-ggplot(data = data, aes(x = condition, y = accuracy, fill=condition_label))+
-  stat_summary(fun = "mean", geom="bar", position = 'dodge') +
-  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",  size=.2, width=.9, position = 'dodge')
+ggplot(data = data, aes(x = condition, y = accuracy, color=condition_label))+
+  stat_summary(fun = "mean", geom="point",  size=5) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",  size=.5, width=.3)
 
-ggplot(data = data, aes(x = condition, y = rt, fill=condition_label))+
-  stat_summary(fun = "mean", geom="bar", position = 'dodge') +
-  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",  size=.2, width=.9, position = 'dodge')
+ggplot(data = data, aes(x = condition, y = rt, color=condition_label))+
+  stat_summary(fun = "mean", geom="point",  size=5) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",  size=.5, width=.3)
 ```
 
 Now we can prepare the data for `stan`. Note that this is a bit different for hierarchical models, and also when we want to fit separate parameters per condition:
@@ -59,17 +59,5 @@ sim_data_for_stan <- list(
   accuracy = data$accuracy_recoded,
   rt = data$rt,
   starting_point = 0.5
-)
-```
-
-And start sampling...
-```{r echo=TRUE, message=FALSE, warning=FALSE}
-fit1 <- stan(
-  file = "stan_models/hierDDM_cond.stan",            # Stan program
-  data = sim_data_for_stan,                          # named list of data
-  chains = 2,                                        # number of Markov chains
-  warmup = 1000,                                     # number of warmup iterations per chain
-  iter = 3000,                                       # total number of iterations per chain
-  cores = 2                                          # number of cores (could use one per chain)
 )
 ```

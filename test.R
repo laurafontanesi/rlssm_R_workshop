@@ -32,7 +32,7 @@ ggplot(data = sim_path, aes(x = time, y = dv, color=factor(accumulator)))+
 # fit hierarchical DM on real data
 data <- read.csv('data/fontanesi2019.csv')
 data <- select(data, -X) # drop pandas index column
-data <- data[data$participant < 11] # select only 10 participants
+data <- data[data$participant < 11,] # select only 10 participants
 data$accuracy_recoded <- data$accuracy
 data[data$accuracy==0, "accuracy_recoded"] <- -1
 
@@ -46,13 +46,13 @@ data[(data$inc_option == 1)&(data$cor_option == 3),"condition"] <- 2
 data[(data$inc_option == 2)&(data$cor_option == 4),"condition"] <- 3
 data[(data$inc_option == 3)&(data$cor_option == 4),"condition"] <- 4
 
-ggplot(data = data, aes(x = condition, y = accuracy, fill=condition_label))+
-  stat_summary(fun = "mean", geom="bar", position = 'dodge') +
-  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",  size=.2, width=.9, position = 'dodge')
+ggplot(data = data, aes(x = condition, y = accuracy, color=condition_label))+
+  stat_summary(fun = "mean", geom="point",  size=5) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",  size=.5, width=.3)
 
-ggplot(data = data, aes(x = condition, y = rt, fill=condition_label))+
-  stat_summary(fun = "mean", geom="bar", position = 'dodge') +
-  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",  size=.2, width=.9, position = 'dodge')
+ggplot(data = data, aes(x = condition, y = rt, color=condition_label))+
+  stat_summary(fun = "mean", geom="point",  size=5) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",  size=.5, width=.3)
 
 head(data)
 

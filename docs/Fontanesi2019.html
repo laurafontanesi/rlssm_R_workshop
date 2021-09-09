@@ -301,13 +301,13 @@ data[(data$inc_option == 1)&amp;(data$cor_option == 3),&quot;condition&quot;] &l
 data[(data$inc_option == 2)&amp;(data$cor_option == 4),&quot;condition&quot;] &lt;- 3
 data[(data$inc_option == 3)&amp;(data$cor_option == 4),&quot;condition&quot;] &lt;- 4</code></pre>
 <p>The first model we can try to fit, is a diffusion model (DM) in which we vary drift-rate and threshold based on the condition (or choice pair). The DM assumptions are actually violated in this task: when we fit the DM without learning component, we assume that the trials are somewhat independent. While this is rarely the case even in non-learning tasks (e.g., because of post-error effects, practice effects) this is clearly not the case in learning tasks. However, this can give us a good idea of context-dependent effects on the RT distributions such as the ones we observed in the following plots:</p>
-<pre class="r"><code>ggplot(data = data, aes(x = condition, y = accuracy, fill=condition_label))+
-  stat_summary(fun = &quot;mean&quot;, geom=&quot;bar&quot;, position = &#39;dodge&#39;) +
-  stat_summary(fun.data = mean_cl_normal, geom = &quot;errorbar&quot;,  size=.2, width=.9, position = &#39;dodge&#39;)</code></pre>
+<pre class="r"><code>ggplot(data = data, aes(x = condition, y = accuracy, color=condition_label))+
+  stat_summary(fun = &quot;mean&quot;, geom=&quot;point&quot;,  size=5) +
+  stat_summary(fun.data = mean_cl_normal, geom = &quot;errorbar&quot;,  size=.5, width=.3)</code></pre>
 <p><img src="Fontanesi2019_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
-<pre class="r"><code>ggplot(data = data, aes(x = condition, y = rt, fill=condition_label))+
-  stat_summary(fun = &quot;mean&quot;, geom=&quot;bar&quot;, position = &#39;dodge&#39;) +
-  stat_summary(fun.data = mean_cl_normal, geom = &quot;errorbar&quot;,  size=.2, width=.9, position = &#39;dodge&#39;)</code></pre>
+<pre class="r"><code>ggplot(data = data, aes(x = condition, y = rt, color=condition_label))+
+  stat_summary(fun = &quot;mean&quot;, geom=&quot;point&quot;,  size=5) +
+  stat_summary(fun.data = mean_cl_normal, geom = &quot;errorbar&quot;,  size=.5, width=.3)</code></pre>
 <p><img src="Fontanesi2019_files/figure-html/unnamed-chunk-3-2.png" width="672" /></p>
 <p>Now we can prepare the data for <code>stan</code>. Note that this is a bit different for hierarchical models, and also when we want to fit separate parameters per condition:</p>
 <pre class="r"><code>unique(data$participant)</code></pre>
