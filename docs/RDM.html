@@ -355,25 +355,25 @@ ggplot(data = sim_path, aes(x = time, y = dv, color=factor(accumulator)))+
 <pre class="r"><code>sim_data &lt;- random_rdm(n_trials=1000, drift1=.7, drift2=1.2, threshold=1.5, ndt=.23)
 summary(sim_data)</code></pre>
 <pre><code>##      trial            choice            rt        
-##  Min.   :   1.0   Min.   :1.000   Min.   :0.3920  
-##  1st Qu.: 250.8   1st Qu.:1.000   1st Qu.:0.7618  
-##  Median : 500.5   Median :2.000   Median :1.0130  
-##  Mean   : 500.5   Mean   :1.668   Mean   :1.1608  
-##  3rd Qu.: 750.2   3rd Qu.:2.000   3rd Qu.:1.4060  
-##  Max.   :1000.0   Max.   :2.000   Max.   :3.9410</code></pre>
+##  Min.   :   1.0   Min.   :1.000   Min.   :0.3150  
+##  1st Qu.: 250.8   1st Qu.:1.000   1st Qu.:0.7518  
+##  Median : 500.5   Median :2.000   Median :1.0115  
+##  Mean   : 500.5   Mean   :1.643   Mean   :1.1430  
+##  3rd Qu.: 750.2   3rd Qu.:2.000   3rd Qu.:1.3980  
+##  Max.   :1000.0   Max.   :2.000   Max.   :4.7470</code></pre>
 <pre class="r"><code>ggplot(data = sim_data, mapping = aes(x = rt, fill = factor(choice))) + 
   geom_histogram(binwidth=.05, alpha = .3, position=&quot;identity&quot;)</code></pre>
 <p><img src="RDM_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
 <p>The same results can be obtained with the R <a href="https://osf.io/3sp9t/">code</a> attached to the original paper, which can be downloaded and loaded in R:</p>
 <pre class="r"><code>sim_data &lt;- rWaldRace(n=1000, v=c(.7, 1.2), B=1.5, A=0, t0=.23, gf = 0)
 summary(sim_data)</code></pre>
-<pre><code>##        RT               R        
-##  Min.   :0.4061   Min.   :1.000  
-##  1st Qu.:0.7432   1st Qu.:1.000  
-##  Median :0.9775   Median :2.000  
-##  Mean   :1.1495   Mean   :1.659  
-##  3rd Qu.:1.3653   3rd Qu.:2.000  
-##  Max.   :5.5369   Max.   :2.000</code></pre>
+<pre><code>##        RT               R       
+##  Min.   :0.3985   Min.   :1.00  
+##  1st Qu.:0.7441   1st Qu.:1.00  
+##  Median :0.9866   Median :2.00  
+##  Mean   :1.1444   Mean   :1.64  
+##  3rd Qu.:1.3671   3rd Qu.:2.00  
+##  Max.   :4.8739   Max.   :2.00</code></pre>
 <div id="parameter-recovery-with-mle" class="section level2">
 <h2>Parameter recovery with MLE</h2>
 <p>In the same file, we can also find the likelihood function.</p>
@@ -394,14 +394,14 @@ summary(sim_data)</code></pre>
 starting_values = c(1, 1, 1, .1) # set some starting values
 
 print(log_likelihood_rdm(starting_values, data=sim_data))</code></pre>
-<pre><code>## [1] -2043.087</code></pre>
+<pre><code>## [1] -2033.958</code></pre>
 <pre class="r"><code>fit1 &lt;- nmkb(par = starting_values,
              fn = function (x) log_likelihood_rdm(x, data=sim_data),
              lower = c(0, 0, 0, 0),
              upper = c(10, 10, 10, 5),
              control = list(maximize = TRUE))
 print(fit1$par) # print estimated parameters</code></pre>
-<pre><code>## [1] 0.6328157 1.1856495 1.4146659 0.2652961</code></pre>
+<pre><code>## [1] 0.6788203 1.1721012 1.4287021 0.2572723</code></pre>
 </div>
 <div id="parameter-recovery-with-stan" class="section level2">
 <h2>Parameter Recovery with stan</h2>
@@ -428,12 +428,12 @@ print(fit1$par) # print estimated parameters</code></pre>
 ## post-warmup draws per chain=2000, total post-warmup draws=4000.
 ## 
 ##                  mean se_mean   sd 2.5%  25%  50%  75% 97.5% n_eff Rhat
-## transf_drift1    0.64       0 0.07 0.51 0.59 0.63 0.68  0.77  1100    1
-## transf_drift2    1.19       0 0.06 1.07 1.15 1.19 1.23  1.31  1135    1
-## transf_threshold 1.43       0 0.07 1.30 1.38 1.42 1.47  1.56   848    1
-## transf_ndt       0.26       0 0.02 0.22 0.25 0.26 0.28  0.30   912    1
+## transf_drift1    0.68       0 0.07 0.55 0.64 0.68 0.73  0.81  1133    1
+## transf_drift2    1.17       0 0.06 1.05 1.13 1.17 1.22  1.29  1010    1
+## transf_threshold 1.44       0 0.07 1.31 1.39 1.43 1.48  1.58   924    1
+## transf_ndt       0.25       0 0.02 0.21 0.24 0.25 0.27  0.29  1040    1
 ## 
-## Samples were drawn using NUTS(diag_e) at Wed Sep  8 22:44:14 2021.
+## Samples were drawn using NUTS(diag_e) at Wed Sep  8 23:24:18 2021.
 ## For each parameter, n_eff is a crude measure of effective sample size,
 ## and Rhat is the potential scale reduction factor on split chains (at 
 ## convergence, Rhat=1).</code></pre>
@@ -442,13 +442,13 @@ print(fit1$par) # print estimated parameters</code></pre>
 <p><img src="RDM_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
 <pre class="r"><code>sampler_params &lt;- get_sampler_params(fit1, inc_warmup = TRUE)
 summary(do.call(rbind, sampler_params), digits = 2)</code></pre>
-<pre><code>##  accept_stat__    stepsize__       treedepth__   n_leapfrog__  divergent__        energy__    
-##  Min.   :0.00   Min.   : 0.0037   Min.   :0.0   Min.   :  1   Min.   :0.0000   Min.   : 1246  
-##  1st Qu.:0.87   1st Qu.: 0.2321   1st Qu.:3.0   1st Qu.:  7   1st Qu.:0.0000   1st Qu.: 1248  
-##  Median :0.96   Median : 0.2483   Median :3.0   Median : 15   Median :0.0000   Median : 1249  
-##  Mean   :0.88   Mean   : 0.2593   Mean   :3.2   Mean   : 13   Mean   :0.0087   Mean   : 1253  
-##  3rd Qu.:0.99   3rd Qu.: 0.2483   3rd Qu.:4.0   3rd Qu.: 15   3rd Qu.:0.0000   3rd Qu.: 1251  
-##  Max.   :1.00   Max.   :14.3855   Max.   :7.0   Max.   :183   Max.   :1.0000   Max.   :11465</code></pre>
+<pre><code>##  accept_stat__    stepsize__       treedepth__   n_leapfrog__  divergent__        energy__   
+##  Min.   :0.00   Min.   : 0.0028   Min.   :0.0   Min.   :  1   Min.   :0.0000   Min.   :1255  
+##  1st Qu.:0.88   1st Qu.: 0.2186   1st Qu.:3.0   1st Qu.:  7   1st Qu.:0.0000   1st Qu.:1257  
+##  Median :0.96   Median : 0.2438   Median :3.0   Median : 15   Median :0.0000   Median :1258  
+##  Mean   :0.89   Mean   : 0.2587   Mean   :3.2   Mean   : 14   Mean   :0.0073   Mean   :1260  
+##  3rd Qu.:0.99   3rd Qu.: 0.2438   3rd Qu.:4.0   3rd Qu.: 15   3rd Qu.:0.0000   3rd Qu.:1260  
+##  Max.   :1.00   Max.   :14.3855   Max.   :6.0   Max.   :127   Max.   :1.0000   Max.   :2823</code></pre>
 <p>More plotting:</p>
 <pre class="r"><code>posterior &lt;- as.matrix(fit1)
 

@@ -358,12 +358,12 @@ library(bayesplot)</code></pre>
 ## 4       4   54  5</code></pre>
 <pre class="r"><code>head(stimuli)</code></pre>
 <pre><code>##   trial trial_type inc_option cor_option f_inc f_cor
-## 1     1        1-2          1          2    28    27
-## 2     2        1-3          1          3    26    40
-## 3     3        2-4          2          4    41    54
-## 4     4        3-4          3          4    54    66
-## 5     5        1-2          1          2    32    32
-## 6     6        1-3          1          3    33    53</code></pre>
+## 1     1        1-2          1          2    30    37
+## 2     2        1-3          1          3    27    46
+## 3     3        2-4          2          4    35    47
+## 4     4        3-4          3          4    63    61
+## 5     5        1-2          1          2    22    33
+## 6     6        1-3          1          3    24    60</code></pre>
 <pre class="r"><code>stimuli_for_plotting &lt;- pivot_longer(stimuli, cols=c(f_inc, f_cor), names_to = &quot;option&quot;, names_prefix = &quot;f_&quot;, values_to=&quot;feedback&quot;)
 
 ggplot(data = stimuli_for_plotting, aes(x = trial, y = feedback, color=option))+
@@ -453,13 +453,13 @@ random_rldm &lt;- function(stimuli, alpha, drift_scaling, threshold, ndt, rel_sp
 <pre class="r"><code>sim_data &lt;- random_rldm(stimuli, alpha = .03, drift_scaling = .1, threshold = 1.2, ndt=.15)
 
 head(sim_data)</code></pre>
-<pre><code>##   trial trial_type inc_option cor_option f_inc f_cor   Q_cor    Q_inc      drift threshold  ndt accuracy    rt
-## 1     1        1-2          1          2    28    27 20.0000 20.00000  0.0000000       1.2 0.15        1 0.701
-## 2     2        1-3          1          3    26    40 20.0000 20.24000 -0.0240000       1.2 0.15        1 0.492
-## 3     3        2-4          2          4    41    54 20.0000 20.21000 -0.0210000       1.2 0.15        1 0.365
-## 4     4        3-4          3          4    54    66 21.0200 20.60000  0.0420000       1.2 0.15        1 0.508
-## 5     5        1-2          1          2    32    32 20.8337 20.41280  0.0420900       1.2 0.15        0 0.473
-## 6     6        1-3          1          3    33    53 21.6020 20.76042  0.0841584       1.2 0.15        1 0.297</code></pre>
+<pre><code>##   trial trial_type inc_option cor_option f_inc f_cor   Q_cor    Q_inc     drift threshold  ndt accuracy    rt
+## 1     1        1-2          1          2    30    37 20.0000 20.00000  0.000000       1.2 0.15        0 0.250
+## 2     2        1-3          1          3    27    46 20.0000 20.30000 -0.030000       1.2 0.15        0 1.832
+## 3     3        2-4          2          4    35    47 20.0000 20.51000 -0.051000       1.2 0.15        0 0.372
+## 4     4        3-4          3          4    63    61 20.8100 20.78000  0.003000       1.2 0.15        0 1.690
+## 5     5        1-2          1          2    22    33 20.9447 20.50100  0.044370       1.2 0.15        1 0.348
+## 6     6        1-3          1          3    24    60 22.0466 20.54597  0.150063       1.2 0.15        1 0.285</code></pre>
 <p>First, we can have a look at the average performance across trial-types. Note that, since the threshold was not modulated, the same performance is predicted across magnitudes:</p>
 <pre class="r"><code>sim_data$trial_bin &lt;- cut(sim_data$trial,
                           breaks = seq(min(sim_data$trial), max(sim_data$trial), length.out=7),
@@ -534,14 +534,14 @@ sim_data[sim_data$accuracy == 1, &quot;response&quot;] = &quot;upper&quot;
 starting_values = c(.5, .1, 2, .2) # set some starting values
 
 print(log_likelihood_rldm(starting_values, data=sim_data)) # check that starting values are plausible</code></pre>
-<pre><code>## [1] -474.2242</code></pre>
+<pre><code>## [1] -581.763</code></pre>
 <pre class="r"><code>fit1 &lt;- nmkb(par = starting_values,
              fn = function (x) log_likelihood_rldm(x, data=sim_data),
              lower = c(0, -10, 0, 0),
              upper = c(1, 10, 10, 5),
              control = list(maximize = TRUE))
 print(fit1$par) # print estimated parameters</code></pre>
-<pre><code>## [1] 0.01264504 0.17069675 1.28018012 0.15678612</code></pre>
+<pre><code>## [1] 0.04440228 0.10360590 1.30074250 0.14229977</code></pre>
 </div>
 <div id="parameter-recovery-with-stan" class="section level2">
 <h2>Parameter Recovery with stan</h2>
@@ -579,12 +579,12 @@ sim_data_for_stan = list(
 ## post-warmup draws per chain=2000, total post-warmup draws=4000.
 ## 
 ##                      mean se_mean   sd 2.5%  25%  50%  75% 97.5% n_eff Rhat
-## transf_alpha         0.04    0.00 0.05 0.00 0.02 0.03 0.05  0.16  1005 1.00
-## transf_drift_scaling 0.14    0.01 0.12 0.07 0.09 0.11 0.15  0.46    93 1.02
-## transf_threshold     1.29    0.00 0.05 1.20 1.25 1.28 1.32  1.39  1298 1.00
-## transf_ndt           0.15    0.00 0.01 0.14 0.15 0.16 0.16  0.17  1389 1.00
+## transf_alpha         0.08       0 0.06 0.02 0.05 0.07 0.10  0.25  1640    1
+## transf_drift_scaling 0.10       0 0.02 0.07 0.09 0.09 0.10  0.13  1888    1
+## transf_threshold     1.31       0 0.05 1.22 1.27 1.31 1.34  1.41  1840    1
+## transf_ndt           0.14       0 0.01 0.12 0.14 0.14 0.15  0.15  1800    1
 ## 
-## Samples were drawn using NUTS(diag_e) at Wed Sep  8 22:46:27 2021.
+## Samples were drawn using NUTS(diag_e) at Wed Sep  8 23:26:19 2021.
 ## For each parameter, n_eff is a crude measure of effective sample size,
 ## and Rhat is the potential scale reduction factor on split chains (at 
 ## convergence, Rhat=1).</code></pre>
@@ -594,13 +594,13 @@ sim_data_for_stan = list(
 <p><img src="RLDM_files/figure-html/unnamed-chunk-14-1.png" width="672" /></p>
 <pre class="r"><code>sampler_params &lt;- get_sampler_params(fit1, inc_warmup = TRUE)
 summary(do.call(rbind, sampler_params), digits = 2)</code></pre>
-<pre><code>##  accept_stat__    stepsize__       treedepth__   n_leapfrog__  divergent__        energy__   
-##  Min.   :0.00   Min.   :7.6e-04   Min.   :0.0   Min.   :  1   Min.   :0.0000   Min.   :  73  
-##  1st Qu.:0.86   1st Qu.:1.8e-01   1st Qu.:3.0   1st Qu.:  7   1st Qu.:0.0000   1st Qu.:  75  
-##  Median :0.96   Median :2.0e-01   Median :4.0   Median : 15   Median :0.0000   Median :  76  
-##  Mean   :0.86   Mean   :2.2e-01   Mean   :3.5   Mean   : 17   Mean   :0.0072   Mean   :  88  
-##  3rd Qu.:0.99   3rd Qu.:2.0e-01   3rd Qu.:4.0   3rd Qu.: 23   3rd Qu.:0.0000   3rd Qu.:  78  
-##  Max.   :1.00   Max.   :1.4e+01   Max.   :8.0   Max.   :383   Max.   :1.0000   Max.   :7114</code></pre>
+<pre><code>##  accept_stat__    stepsize__       treedepth__   n_leapfrog__  divergent__        energy__    
+##  Min.   :0.00   Min.   :6.2e-05   Min.   :0.0   Min.   :  1   Min.   :0.0000   Min.   :   69  
+##  1st Qu.:0.91   1st Qu.:3.0e-01   1st Qu.:3.0   1st Qu.:  7   1st Qu.:0.0000   1st Qu.:   72  
+##  Median :0.97   Median :3.6e-01   Median :3.0   Median :  7   Median :0.0000   Median :   73  
+##  Mean   :0.90   Mean   :3.9e-01   Mean   :2.9   Mean   : 10   Mean   :0.0058   Mean   :  129  
+##  3rd Qu.:0.99   3rd Qu.:3.6e-01   3rd Qu.:3.0   3rd Qu.: 15   3rd Qu.:0.0000   3rd Qu.:   74  
+##  Max.   :1.00   Max.   :1.4e+01   Max.   :8.0   Max.   :255   Max.   :1.0000   Max.   :16935</code></pre>
 <p>More plotting:</p>
 <pre class="r"><code>posterior &lt;- as.matrix(fit1)
 

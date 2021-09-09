@@ -370,21 +370,21 @@ create_stimuli &lt;- function(n_trials, mean_1=12.375, mean_2=20.625, sd=6.1875)
 stimuli &lt;- create_stimuli(1000) # simulate 1000 trials (for example)
 summary(stimuli)</code></pre>
 <pre><code>##      dist1           dist2         source       strength     instruction 
-##  Min.   : 1.00   Min.   : 2.00   dark :526   16     : 65   accuracy:500  
-##  1st Qu.: 8.00   1st Qu.:16.00   light:474   13     : 60   speed   :500  
-##  Median :12.00   Median :20.00               14     : 55                 
-##  Mean   :12.46   Mean   :19.71               12     : 50                 
-##  3rd Qu.:16.00   3rd Qu.:24.00               17     : 48                 
-##  Max.   :33.00   Max.   :33.00               15     : 47                 
-##                                              (Other):675</code></pre>
+##  Min.   : 1.00   Min.   : 2.00   dark :518   15     : 58   accuracy:500  
+##  1st Qu.: 8.00   1st Qu.:16.00   light:482   17     : 55   speed   :500  
+##  Median :12.00   Median :20.00               14     : 53                 
+##  Mean   :12.22   Mean   :19.91               19     : 52                 
+##  3rd Qu.:16.00   3rd Qu.:24.00               20     : 52                 
+##  Max.   :30.00   Max.   :33.00               11     : 47                 
+##                                              (Other):683</code></pre>
 <pre class="r"><code>head(stimuli)</code></pre>
 <pre><code>##   dist1 dist2 source strength instruction
-## 1     7    23  light       23       speed
-## 2    14    22  light       22       speed
-## 3    14    22  light       22       speed
-## 4    15    20  light       20       speed
-## 5     5    23  light       23       speed
-## 6     9    24  light       24       speed</code></pre>
+## 1    16    31   dark       16       speed
+## 2    10    12  light       12       speed
+## 3    14    31   dark       14       speed
+## 4     4    17   dark        4       speed
+## 5     5    14   dark        5       speed
+## 6     8     8   dark        8       speed</code></pre>
 <p>Also, we can first define the DM for 1 trial, where the lower boundary corresponds to “dark” and the upper boundary corresponds to “light”:</p>
 <pre class="r"><code># simulate data from simple DM
 random_dm &lt;- function(drift, threshold, ndt=.15, rel_sp=.5, noise_constant=1, dt=0.001, max_rt=10) {

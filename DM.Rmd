@@ -192,3 +192,46 @@ mcmc_areas(posterior,
            pars = c("drift", "transf_threshold", "transf_ndt"),
            prob = 0.95) + plot_title
 ```
+
+Let's now simulate data with across-trial variability in the drift-rate:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+sim_data3 <- rdiffusion(n=1000, a=1.5, v=.7, t0=.23, sv=1)
+sim_data3$accuracy = 0
+sim_data3[sim_data3$response=="upper", "accuracy"] = 1
+summary(sim_data3)
+
+sim_data3$accuracy_recoded = sim_data3$accuracy
+sim_data3[sim_data3$accuracy==0, "accuracy_recoded"] = -1
+
+sim_data_for_stan = list(
+  N = dim(sim_data3)[1],
+  accuracy = sim_data3$accuracy_recoded,
+  rt = sim_data3$rt,
+  starting_point = 0.5
+)
+```
+
+And fit the model with across-trial variability in the drift-rate:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+fit2 <- stan(
+  file = "stan_models/DM_driftvar.stan",             # Stan program
+  data = sim_data_for_stan,                          # named list of data
+  chains = 2,                                        # number of Markov chains
+  warmup = 1000,                                     # number of warmup iterations per chain
+  iter = 3000,                                       # total number of iterations per chain
+  cores = 2                                          # number of cores (could use one per chain)
+)
+```
+
+Summary and plot:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+print(fit2, pars = c("drift_trialmu", "transf_drift_trialsd", "transf_threshold", "transf_ndt"))
+
+posterior <- as.matrix(fit2)
+
+plot_title <- ggtitle("Posterior distributions",
+                      "with medians and 95% intervals")
+mcmc_areas(posterior,
+           pars = c("drift_trialmu", "transf_drift_trialsd", "transf_threshold", "transf_ndt"),
+           prob = 0.95) + plot_title
+```
