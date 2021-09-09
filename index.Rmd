@@ -4,6 +4,8 @@ title: "Home"
 
 Here you find the coding material for the workshop on **reinforcement learning and sequential sampling modeling**, presented at [CMAH](https://cmah.eu/) 2021 (9 and 10 Sept 2021).
 
+Find the source code [here](https://github.com/laurafontanesi/rlssm_R_workshop).
+
 ## Program:
 
 * Sequential sampling
