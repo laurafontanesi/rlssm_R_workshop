@@ -43,18 +43,91 @@ In the dataset there are 3 participants, who completed ~ 3800 trials in each con
 
 * **A** First, let's focus on the **instruction manipulation**. Using the [summarise function](https://dplyr.tidyverse.org/reference/summarise.html) of the tidiverse package combined with the [group_by function](https://dplyr.tidyverse.org/reference/group_by.html), calculate the average performance (both RTs and accuracy) per subject and instruction level. What do you observe?
 
+*Possible answer*:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+summarise(group_by(rr98,
+                   id,
+                   instruction), 
+          n = n(),
+          mean_rt = mean(rt),
+          mean_accuracy = mean(accuracy))
+```
+
 * **B** Then, let's focus on the **brightness level manipulation**. Using the [stats_summary function in ggplot](https://ggplot2.tidyverse.org/reference/stat_summary.html), plot participants' average performance, separately per strength, instruction level and participant (preferabily using point plots with error bars). What do you observe?
 
+*Possible answer*:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+ggplot(data = rr98, mapping = aes(x = factor(strength), y = rt, color=instruction)) +
+  stat_summary(fun = "mean", geom="point") +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", size=.2, width=.9) +
+  facet_grid(rows=vars(id))
+
+ggplot(data = rr98, mapping = aes(x = factor(strength), y = accuracy, color=instruction)) +
+  stat_summary(fun = "mean", geom="point") +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", size=.2, width=.9) +
+  facet_grid(rows=vars(id))
+```
+
 * **C** Finally, let's focus on the effects of the **session** on average performance. Using the [stats_summary function in ggplot](https://ggplot2.tidyverse.org/reference/stat_summary.html), plot participants' average performance, separately per session, instruction level and participant (preferabily using point plots with error bars). What do you observe?
+
+*Possible answer*:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+ggplot(data = rr98, mapping = aes(x = factor(block), y = rt, color=instruction)) +
+  stat_summary(fun = "mean", geom="point") +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", size=.2, width=.9) +
+  facet_grid(rows=vars(id))
+
+ggplot(data = rr98, mapping = aes(x = factor(block), y = accuracy, color=instruction)) +
+  stat_summary(fun = "mean", geom="point") +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", size=.2, width=.9) +
+  facet_grid(rows=vars(id))
+```
 
 * **D** Add a new column to the dataset called `strength_binned`, in which the brightness levels are grouped into bins of equal lenght (similarly to the original paper). The idea is to have bins of brightness level with similar performance, to reduce noise in the data and to later be able to fit separate drift-rates per brightness level (33 would be a lot of drift-rates to fit).
 
 While the average is a good summary statistic for accuracy (since it's a binary variable), when we inspect response times the average is not enough. Infact, typical response times distributions are not Gaussian, but more similar to an [Inverse Gaussian](https://en.wikipedia.org/wiki/Inverse_Gaussian_distribution).
 Therefore, we typically inspect quantiles rather than just the average. Moreover, it can be that the response times distribution differ for different options. Therefore, we typically want to inspect RT distributions separately per choice (in this case, light vs. dark).
 
+*Possible answer*:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+rr98$strength_binned <- cut(rr98$strength,
+                            breaks = seq(min(rr98$strength), max(rr98$strength), length.out=6),
+                            include.lowest = TRUE)
+```
+
 * **E** Plot the RT as histograms, separately per participant (as row in the grid), instruction (as color filling), and as strenght bin (as column in the grid). What do you notice about the general shape of the distributions?
 
+*Possible answer*:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+ggplot(data = rr98, mapping = aes(x = rt, fill = instruction)) + 
+  geom_histogram(binwidth=.1, alpha = .3, position="identity") +
+  facet_grid(rows=vars(id), cols=vars(strength_binned))
+```
+
 * **F** Plot the .1, .3, .5, .7, .9 RT quantiles (y-axis), separately per strenght bin (x-axis), participant (as rows in the grid), and choice (as column in the grid). To make it more "readable", plot the 2 instructions separately. What is the main difference between the 2 instruction conditions?
+
+*Possible answer*:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+ggplot(data = rr98[rr98$instruction=="speed",], mapping = aes(x = strength_binned, y=rt)) + 
+  stat_summary(aes(group=1), fun=median, geom="line", size=.8, color="coral4") +
+  stat_summary(aes(group=1), fun=function(x) quantile(x, .1), geom="line", size=.2, color="coral") +
+  stat_summary(aes(group=1), fun=function(x) quantile(x, .3), geom="line", size=.5, color="coral3") +
+  stat_summary(aes(group=1), fun=function(x) quantile(x, .7), geom="line", size=.5, color="coral3") +
+  stat_summary(aes(group=1), fun=function(x) quantile(x, .9), geom="line", size=.2, color="coral") +
+  facet_grid(rows=vars(id), cols=vars(correct)) +
+  labs(title="Speed emphasized") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+ggplot(data = rr98[rr98$instruction=="accuracy",], mapping = aes(x = strength_binned, y=rt)) + 
+  stat_summary(aes(group=1), fun=median, geom="line", size=.8, color="coral4") +
+  stat_summary(aes(group=1), fun=function(x) quantile(x, .1), geom="line", size=.2, color="coral") +
+  stat_summary(aes(group=1), fun=function(x) quantile(x, .3), geom="line", size=.5, color="coral3") +
+  stat_summary(aes(group=1), fun=function(x) quantile(x, .7), geom="line", size=.5, color="coral3") +
+  stat_summary(aes(group=1), fun=function(x) quantile(x, .9), geom="line", size=.2, color="coral") +
+  facet_grid(rows=vars(id), cols=vars(correct)) +
+  labs(title="Accuracy emphasized") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
 
 ## Day 2. Setting up the model: Simulating data
 
@@ -95,7 +168,10 @@ create_stimuli <- function(n_trials, mean_1=12.375, mean_2=20.625, sd=6.1875) {
   stimuli$instruction = rep(c("speed", "accuracy"), each=n_trials/2)
   
   # separate strength in bins (based on what you did in Day 1)
-  
+    stimuli$strength_binned <- cut(stimuli$strength,
+                                 breaks = seq(min(stimuli$strength), max(stimuli$strength), length.out=6),
+                                 include.lowest = TRUE)
+
   # transform into factors
   stimuli$instruction = as.factor(stimuli$instruction)
   stimuli$strength = as.factor(stimuli$strength)
@@ -182,7 +258,106 @@ random_dm_vd_vt <- function (stimuli, drift_int, drift_coeff, threshold_speed, t
 }
 ```
 
+*Possible answer*:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+random_dm_vt <- function(stimuli, drift, threshold_speed, threshold_accuracy, ndt) {
+  stimuli$drift = drift
+  stimuli$threshold = threshold_speed
+  stimuli[stimuli$instruction == "accuracy", "threshold"] = threshold_accuracy
+  stimuli$ndt = ndt
+  
+  stimuli[,c("choice", "rt")] = t(apply(stimuli[,c('drift','threshold','ndt')], 1, function(x) random_dm(x[1],x[2],x[3])))
+  
+  stimuli$accuracy <- NA
+  stimuli[!is.na(stimuli$choice) & (stimuli$source == stimuli$choice), "accuracy"] = 1
+  stimuli[!is.na(stimuli$choice) & (stimuli$source != stimuli$choice), "accuracy"] = 0
+  
+  stimuli$choice = as.factor(stimuli$choice)
+  stimuli$rt = as.numeric(stimuli$rt)
+  
+  return(stimuli)
+}
+
+random_dm_vd <- function(stimuli, drift_int, drift_coeff, threshold, ndt) {
+  
+  stimuli$drift = drift_int + drift_coeff*as.numeric(stimuli$strength)
+  stimuli$threshold = threshold
+  stimuli$ndt = ndt
+  
+  stimuli[,c("choice", "rt")] = t(apply(stimuli[,c('drift','threshold','ndt')], 1, function(x) random_dm(x[1],x[2],x[3])))
+  
+  stimuli$accuracy <- NA
+  stimuli[!is.na(stimuli$choice) & (stimuli$source == stimuli$choice), "accuracy"] = 1
+  stimuli[!is.na(stimuli$choice) & (stimuli$source != stimuli$choice), "accuracy"] = 0
+  
+  stimuli$choice = as.factor(stimuli$choice)
+  stimuli$rt = as.numeric(stimuli$rt)
+  
+  return(stimuli)
+}
+
+random_dm_vd_vt <- function(stimuli, drift_int, drift_coeff, threshold_speed, threshold_accuracy, ndt) {
+  stimuli$drift = drift_int + drift_coeff*as.numeric(stimuli$strength)
+  stimuli$threshold = threshold_speed
+  stimuli[stimuli$instruction == "accuracy", "threshold"] = threshold_accuracy
+  stimuli$ndt = ndt
+  
+  stimuli[,c("choice", "rt")] = t(apply(stimuli[,c('drift','threshold','ndt')], 1, function(x) random_dm(x[1],x[2],x[3])))
+  
+  stimuli$accuracy <- NA
+  stimuli[!is.na(stimuli$choice) & (stimuli$source == stimuli$choice), "accuracy"] = 1
+  stimuli[!is.na(stimuli$choice) & (stimuli$source != stimuli$choice), "accuracy"] = 0
+
+  stimuli$choice = as.factor(stimuli$choice)
+  stimuli$rt = as.numeric(stimuli$rt)
+  
+  return(stimuli)
+}
+```
+
 * **B** Simulate data for one subject, choosing plausible parameter combinations, and visually compare with the original dataset. You should make plots for both average rt and accuracy across bins of strength and instruction. Write a few notes about what do you observe for each of the 3 models.
+
+*Possible answer*:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+### Varying only the threshold
+sim_data_vt <- random_dm_vt(stimuli, drift = 0, threshold_speed = 1, threshold_accuracy = 2.5, ndt = .15)
+summary(sim_data_vt)
+# note that the drift-rate here is 0, because it does not depend in any way from the evidence...
+
+ggplot(data = sim_data_vt, mapping = aes(x = factor(strength_binned), y = rt, color=instruction)) +
+  stat_summary(fun = "mean", geom="point") +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", size=.2, width=.9)
+
+ggplot(data = sim_data_vt, mapping = aes(x = factor(strength_binned), y = accuracy, color=instruction)) +
+  stat_summary(fun = "mean", geom="point") +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", size=.2, width=.9)
+
+### Varying only the drift
+sim_data_vd <- random_dm_vd(stimuli, drift_int = -1.75, drift_coeff = .1, threshold = 2, ndt = .15)
+head(sim_data_vd, 10)
+# note that there is no difference between speed and accuracy conditions because we did not vary the threshold...
+
+ggplot(data = sim_data_vd, mapping = aes(x = factor(strength_binned), y = rt, color=instruction)) +
+  stat_summary(fun = "mean", geom="point") +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", size=.2, width=.9)
+
+ggplot(data = sim_data_vd, mapping = aes(x = factor(strength_binned), y = accuracy, color=instruction)) +
+  stat_summary(fun = "mean", geom="point") +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", size=.2, width=.9)
+
+### Varying both
+sim_data_vd_vt <- random_dm_vd_vt(stimuli, drift_int = -1.75, drift_coeff = .1, 
+                                  threshold_speed = .8, threshold_accuracy = 2.5, ndt = .15)
+head(sim_data_vd_vt, 10)
+
+ggplot(data = sim_data_vd_vt, mapping = aes(x = factor(strength_binned), y = rt, color=instruction)) +
+  stat_summary(fun = "mean", geom="point") +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", size=.2, width=.9)
+
+ggplot(data = sim_data_vd_vt, mapping = aes(x = factor(strength_binned), y = accuracy, color=instruction)) +
+  stat_summary(fun = "mean", geom="point") +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", size=.2, width=.9)
+```
 
 ## Day 3. Parameter recovery and model fit
 
