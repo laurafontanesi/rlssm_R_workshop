@@ -208,10 +208,6 @@ ggplot(data = sim_data, aes(x = trial, y = drift, color=trial_type))+
 
 Therefore, we expect the accuracy and RTs to also improve with learning:
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
-sim_data$trial_bin <- cut(sim_data$trial,
-                          breaks = seq(min(sim_data$trial), max(sim_data$trial), length.out=7),
-                          include.lowest = TRUE)
-
 ggplot(data = sim_data, aes(x = trial_bin, y = rt))+
   geom_violin(draw_quantiles = c(0.1, 0.5, 0.9))
 
@@ -340,3 +336,76 @@ mcmc_areas(posterior,
            pars = c("transf_alpha", "transf_drift_scaling", "transf_threshold", "transf_ndt"),
            prob = 0.95) + plot_title
 ```
+
+## Posterior predictives
+
+Until now, we have "stopped" at the model fitting part and haven't looked at posterior predictives yet. Unfortunately, stan doesn't have a generating function that we can add to the generating quantities for posterior predictives. Therefore we sort of have to do it ourselves.
+
+This gives us the opportunity of understanding how posterior predictives are calculated and what should we use.
+
+First of all, we can extract the trial-by-trial parameter estimates as data frames:
+```{r}
+# Extract single-trial parameters
+drift_t = as.data.frame(fit1, pars="drift_t")
+threshold_t = as.data.frame(fit1, pars="threshold_t")
+ndt_t = as.data.frame(fit1, pars="ndt_t")
+n_samples = dim(drift_t)[1]
+n_samples
+```
+
+Then, we can use them to calculate predictions of RTs and accuracy and find ways to group them e.g. by condition:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# add conditions based on choice pairs
+sim_data[(sim_data$inc_option == 1)&(sim_data$cor_option == 2),"condition_label"] <- "difficult"
+sim_data[(sim_data$inc_option == 1)&(sim_data$cor_option == 3),"condition_label"] <- "easy"
+sim_data[(sim_data$inc_option == 2)&(sim_data$cor_option == 4),"condition_label"] <- "easy"
+sim_data[(sim_data$inc_option == 3)&(sim_data$cor_option == 4),"condition_label"] <- "difficult"
+
+sim_data[(sim_data$inc_option == 1)&(sim_data$cor_option == 2),"condition"] <- 1
+sim_data[(sim_data$inc_option == 1)&(sim_data$cor_option == 3),"condition"] <- 2
+sim_data[(sim_data$inc_option == 2)&(sim_data$cor_option == 4),"condition"] <- 2
+sim_data[(sim_data$inc_option == 3)&(sim_data$cor_option == 4),"condition"] <- 1
+
+# calculate PP
+pred_stats <- data.frame()
+
+for (n in seq(1, 100, 1)) { # number of posterior predictives
+  r = sample(seq(1, n_samples), 1) # sample from the joint posterior distr
+  
+  for (c in unique(sim_data$condition)) {
+    pred <- random_dm(drift=as.numeric(slice(drift_t, r))[sim_data$condition == c], # get the r sample, across all trials  
+                      threshold=as.numeric(slice(threshold_t, r))[sim_data$condition == c], 
+                      ndt=as.numeric(slice(ndt_t, r))[sim_data$condition == c])
+    pred_stats <- rbind(pred_stats,
+                        data.frame(mean_accuracy=mean(pred$accuracy),
+                                   mean_rt=mean(pred$rt),
+                                   median_rt=median(pred$rt),
+                                   condition=c))
+  }
+}
+
+pred_stats[pred_stats$condition == 1, "condition_label"] = "difficult"
+pred_stats[pred_stats$condition == 2, "condition_label"] = "easy"
+```
+
+Now that we have distributions of summary statistics, we can compare them with the ones that we calculate on the data. This plotting style is actually not ideal. Instead of plotting the 95 CI we rather plot HDIs, however, the principle is the same:
+```{r}
+ggplot(data = pred_stats, aes(x = condition, y = mean_accuracy, color=condition_label))+
+  stat_summary(fun = "mean", geom="point",  size=4) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",  size=.5, width=.3) +
+  geom_hline(yintercept = mean(sim_data[sim_data$condition == 1, "accuracy"]), color='coral2', linetype='dotted', size=1) +
+  geom_hline(yintercept = mean(sim_data[sim_data$condition == 2, "accuracy"]), color='darkturquoise', linetype='dotted', size=1)
+
+ggplot(data = pred_stats, aes(x = condition, y = mean_rt, color=condition_label))+
+  stat_summary(fun = "mean", geom="point",  size=4) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",  size=.5, width=.3) +
+  geom_hline(yintercept = mean(sim_data[sim_data$condition == 1, "rt"]), color='coral2', linetype='dotted', size=1) +
+  geom_hline(yintercept = mean(sim_data[sim_data$condition == 2, "rt"]), color='darkturquoise', linetype='dotted', size=1)
+
+ggplot(data = pred_stats, aes(x = condition, y = median_rt, color=condition_label))+
+  stat_summary(fun = "mean", geom="point",  size=4) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",  size=.5, width=.3) +
+  geom_hline(yintercept = median(sim_data[sim_data$condition == 1, "rt"]), color='coral2', linetype='dotted', size=1) +
+  geom_hline(yintercept = median(sim_data[sim_data$condition == 2, "rt"]), color='darkturquoise', linetype='dotted', size=1)
+```
+
