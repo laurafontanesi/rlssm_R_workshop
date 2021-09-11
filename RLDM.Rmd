@@ -408,4 +408,3 @@ ggplot(data = pred_stats, aes(x = condition, y = median_rt, color=condition_labe
   geom_hline(yintercept = median(sim_data[sim_data$condition == 1, "rt"]), color='coral2', linetype='dotted', size=1) +
   geom_hline(yintercept = median(sim_data[sim_data$condition == 2, "rt"]), color='darkturquoise', linetype='dotted', size=1)
 ```
-

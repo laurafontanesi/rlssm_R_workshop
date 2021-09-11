@@ -11,6 +11,7 @@ First, let's clear our workspace and load a few packages:
 rm(list = ls())
 library(rtdists)
 library(tidyverse)
+library(dfoptim)
 ```
 
 In this experiment, participants made brightness discriminations (high vs. low) of different pixel arrays.
@@ -408,9 +409,161 @@ log_likelihood_vd_vt <- function(par, data, ll_threshold=1e-10) {
 }
 ```
 
+*Possible answer*:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Likelihood of the model with only varying drift
+log_likelihood_vd <- function(par, data, ll_threshold=1e-10) {
+  # par order: drift_int, drift_coeff, threshold, ndt
+  drift = par[1] + par[2]*as.numeric(data$strength)
+  threshold = rep(par[3], dim(data)[1])
+  ndt = rep(par[4], dim(data)[1])
+  
+  density <- ddiffusion(rt=data$rt, response=data$response, a=threshold, v=drift, t0=ndt)
+  
+  density[density <= ll_threshold] = ll_threshold # put a threhsold on very low likelihoods for computability
+  
+  return(sum(log(density)))
+}
+
+# Likelihood of the model with only varying threhsold
+log_likelihood_vt <- function(par, data, ll_threshold=1e-10) {
+  # par order: drift, threshold_speed, threshold_accuracy, ndt
+  drift = rep(par[1], dim(data)[1])
+  threshold = rep(par[2], dim(data)[1])
+  threshold[data$instruction == "accuracy"] = par[3]
+  ndt = rep(par[4], dim(data)[1])
+  
+  density <- ddiffusion(rt=data$rt, response=data$response, a=threshold, v=drift, t0=ndt)
+  
+  density[density <= ll_threshold] = ll_threshold # put a threhsold on very low likelihoods for computability
+  
+  return(sum(log(density)))
+}
+
+# Likelihood of the full model
+log_likelihood_vd_vt <- function(par, data, ll_threshold=1e-10) {
+  # par order: drift_int, drift_coeff, threshold_speed, threshold_accuracy, ndt
+  drift = par[1] + par[2]*as.numeric(data$strength)
+  threshold = rep(par[3], dim(data)[1])
+  threshold[data$instruction == "accuracy"] = par[4]
+  ndt = rep(par[5], dim(data)[1])
+  
+  density <- ddiffusion(rt=data$rt, response=data$response, a=threshold, v=drift, t0=ndt)
+  
+  density[density <= ll_threshold] = ll_threshold # put a threhsold on very low likelihoods for computability
+  
+  return(sum(log(density)))
+}
+```
+
 * **B** Recover the parameters of the simulated data in Day 2, only for the full model. Are the parameters recovered correctly? 
 
+*Possible answer*:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+sim_data_vd_vt$response = "lower"
+sim_data_vd_vt[sim_data_vd_vt$choice == "light", "response"] = "upper"
+head(sim_data_vd_vt)
+
+starting_values = c(-2, .5, .5, 1, .2) # set some starting values
+
+print(log_likelihood_vd_vt(starting_values, data=sim_data_vd_vt)) # check that starting values are plausible
+  
+fit <- nmkb(par = starting_values,
+            fn = function (x) log_likelihood_vd_vt(x, data=sim_data_vd_vt),
+            lower = c(-10, -10, 0, 0, 0),
+            upper = c(10, 10, 10, 10, 10),
+            control = list(maximize = TRUE))
+  
+print(fit$par) # print estimated parameters
+```
+
 * **C** Fit the DM on the dataset, separately by subject. Save all the fitted parameters to the original dataset in separate columns, as well as the `fit$value`, which we will need for quantitative model comparison in Day 4.
+
+*Possible answer*:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Recoding for the likelihood
+rr98$choice = rr98$response
+rr98$response = as.character(rr98$response)
+rr98[rr98$choice == "light", "response"] = "upper"
+rr98[rr98$choice == "dark", "response"] = "lower"
+head(rr98)
+
+# Fitting the model with only varying drift
+starting_values = c(-1, 1, 1, .1) # set some starting values
+
+for (pp in unique(rr98$id)) {
+  print(pp)
+  
+  data_pp = rr98[rr98$id == pp,]
+  
+  print(log_likelihood_vd(starting_values, data=data_pp)) # check that starting values are plausible
+  
+  fit <- nmkb(par = starting_values,
+              fn = function (x) log_likelihood_vd(x, data=data_pp),
+              lower = c(-10, -10, 0, 0),
+              upper = c(10, 10, 10, 3),
+              control = list(maximize = TRUE))
+  
+  print(fit$par) # print estimated parameters
+  rr98[rr98$id == pp, "vd_estim_drift_int"] = fit$par[1]
+  rr98[rr98$id == pp, "vd_estim_drift_coeff"] = fit$par[2]
+  rr98[rr98$id == pp, "vd_estim_threshold"] = fit$par[3]
+  rr98[rr98$id == pp, "vd_estim_ndt"] = fit$par[4]
+  rr98[rr98$id == pp, "vd_ll"] = fit$value
+  rr98[rr98$id == pp, "vd_BIC"] = -2*fit$value + log(dim(data_pp)[1])*4
+}
+
+# Fitting the model with only varying thresholds
+starting_values = c(0, 1, 1, .1) # set some starting values
+
+for (pp in unique(rr98$id)) {
+  print(pp)
+  
+  data_pp = rr98[rr98$id == pp,]
+  
+  print(log_likelihood_vt(starting_values, data=data_pp)) # check that starting values are plausible
+  
+  fit <- nmkb(par = starting_values,
+              fn = function (x) log_likelihood_vt(x, data=data_pp),
+              lower = c(-10, 0, 0, 0),
+              upper = c(10, 10, 10, 3),
+              control = list(maximize = TRUE))
+  
+  print(fit$par) # print estimated parameters
+  rr98[rr98$id == pp, "vt_estim_drift"] = fit$par[1]
+  rr98[rr98$id == pp, "vt_estim_threshold_speed"] = fit$par[2]
+  rr98[rr98$id == pp, "vt_estim_threshold_accuracy"] = fit$par[3]
+  rr98[rr98$id == pp, "vt_estim_ndt"] = fit$par[4]
+  rr98[rr98$id == pp, "vt_ll"] = fit$value
+  rr98[rr98$id == pp, "vt_BIC"] = -2*fit$value + log(dim(data_pp)[1])*4
+}
+
+# Fitting the full model
+starting_values = c(-1, 1, .5, 1, .1) # set some starting values
+
+for (pp in unique(rr98$id)) {
+  print(pp)
+  
+  data_pp = rr98[rr98$id == pp,]
+  
+  print(log_likelihood_vd_vt(starting_values, data=data_pp)) # check that starting values are plausible
+  
+  fit <- nmkb(par = starting_values,
+              fn = function (x) log_likelihood_vd_vt(x, data=data_pp),
+              lower = c(-10, -10, 0, 0, 0),
+              upper = c(10, 10, 10, 10, 3),
+              control = list(maximize = TRUE))
+  
+  print(fit$par) # print estimated parameters
+  rr98[rr98$id == pp, "vd_vt_estim_drift_int"] = fit$par[1]
+  rr98[rr98$id == pp, "vd_vt_estim_drift_coeff"] = fit$par[2]
+  rr98[rr98$id == pp, "vd_vt_estim_threshold_speed"] = fit$par[3]
+  rr98[rr98$id == pp, "vd_vt_estim_threshold_accuracy"] = fit$par[4]
+  rr98[rr98$id == pp, "vd_vt_estim_ndt"] = fit$par[5]
+  rr98[rr98$id == pp, "vd_vt_ll"] = fit$value
+  rr98[rr98$id == pp, "vd_vt_BIC"] = -2*fit$value + log(dim(data_pp)[1])*5
+}
+```
 
 ## Day 4. Assessing model fit and model comparison
 
@@ -418,4 +571,53 @@ log_likelihood_vd_vt <- function(par, data, ll_threshold=1e-10) {
 
 * **A** Calculate the [BIC](https://en.wikipedia.org/wiki/Bayesian_information_criterion) for each model and subject. For this, you will need the `fit$value` that you should have saved in Day 3. Based on the BIC, which model was best?
 
+*Possible answer*:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Compare the BICs
+BICs = distinct(select(rr98, id, vd_BIC, vt_BIC, vd_vt_BIC))
+BICs
+
+# parameter estimates full (winning) model
+par_estim = distinct(select(rr98, 
+                            id, 
+                            vd_vt_estim_drift_int, vd_vt_estim_drift_coeff, 
+                            vd_vt_estim_threshold_speed, vd_vt_estim_threshold_accuracy,
+                            vd_vt_estim_ndt))
+par_estim
+```
+
 * **B** Generate a new dataset in which, using the `random_dm_vd_vt`, you generate trials based on the parameters that we estimated for each subject. Now, plot side by side the model's predictions  with the real data, across instruction levels and strength bins. What do you observe? How would you improve this model?
+
+*Possible answer*:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+sim_data = data.frame()
+
+for (pp in unique(rr98$id)) {
+  print(pp)
+  data_pp = rr98[rr98$id == pp,]
+  estim_par = distinct(select(data_pp, 
+                              vd_vt_estim_drift_int, 
+                              vd_vt_estim_drift_coeff,
+                              vd_vt_estim_threshold_speed,
+                              vd_vt_estim_threshold_accuracy,
+                              vd_vt_estim_ndt))
+  
+  sim_pp = random_dm_vd_vt(data_pp, estim_par[,1], estim_par[,2], estim_par[,3], estim_par[,4], estim_par[,5])
+  sim_pp = sim_pp[,c("id", "instruction", "strength", "choice", "strength_binned", "rt", "accuracy")]
+  sim_data = rbind(sim_data, sim_pp)
+}
+
+sim_data$data = "simulated"
+rr98$data = "real"
+compare = rbind(sim_data, rr98[,c("id", "instruction", "strength", "choice", "strength_binned", "rt", "accuracy", "data")])
+
+ggplot(data = compare, mapping = aes(x = factor(strength_binned), y = rt, color=instruction)) +
+  stat_summary(fun = "mean", geom="point") +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", size=.2, width=.9) + 
+  facet_grid(rows=vars(id), cols = vars(data))
+
+ggplot(data = compare, mapping = aes(x = factor(strength_binned), y = accuracy, color=instruction)) +
+  stat_summary(fun = "mean", geom="point") +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", size=.2, width=.9) + 
+  facet_grid(rows=vars(id), cols = vars(data))
+```

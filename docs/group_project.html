@@ -282,7 +282,8 @@ $(document).ready(function () {
 <p>First, let’s clear our workspace and load a few packages:</p>
 <pre class="r"><code>rm(list = ls())
 library(rtdists)
-library(tidyverse)</code></pre>
+library(tidyverse)
+library(dfoptim)</code></pre>
 <p>In this experiment, participants made brightness discriminations (high vs. low) of different pixel arrays. The proportion of dark to white pixels (or the brightness level) was sampled in each trial from one of two different overlapping distributions, with different mean and equal SD (dark vs light) and was then discretized in steps of 33 (so that there were only 33 possible brightness levels in the experiment).</p>
 <p>The correct response was to match the distribution from which the brightness level <strong>was sampled from</strong> (labeled “source” in the dataset). Therefore, the noise in participants’ responses could come both from:</p>
 <ul>
@@ -457,29 +458,29 @@ create_stimuli &lt;- function(n_trials, mean_1=12.375, mean_2=20.625, sd=6.1875)
 stimuli &lt;- create_stimuli(1000) # simulate 1000 trials (for example)
 summary(stimuli)</code></pre>
 <pre><code>##      dist1           dist2         source       strength     instruction 
-##  Min.   : 1.00   Min.   : 2.00   dark :501   13     : 69   accuracy:500  
-##  1st Qu.: 8.00   1st Qu.:16.00   light:499   16     : 61   speed   :500  
-##  Median :12.00   Median :20.00               20     : 53                 
-##  Mean   :12.43   Mean   :20.11               12     : 51                 
-##  3rd Qu.:16.00   3rd Qu.:24.00               10     : 49                 
-##  Max.   :32.00   Max.   :33.00               17     : 49                 
-##                                              (Other):668                 
+##  Min.   : 1.00   Min.   : 2.00   dark :494   16     : 64   accuracy:500  
+##  1st Qu.: 8.00   1st Qu.:16.00   light:506   13     : 63   speed   :500  
+##  Median :12.00   Median :20.00               15     : 60                 
+##  Mean   :12.53   Mean   :19.62               19     : 60                 
+##  3rd Qu.:16.00   3rd Qu.:24.00               18     : 52                 
+##  Max.   :32.00   Max.   :33.00               23     : 51                 
+##                                              (Other):650                 
 ##     strength_binned
-##  [1,7.4]    :116   
-##  (7.4,13.8] :258   
-##  (13.8,20.2]:346   
-##  (20.2,26.6]:198   
-##  (26.6,33]  : 82   
+##  [1,7.4]    :123   
+##  (7.4,13.8] :231   
+##  (13.8,20.2]:376   
+##  (20.2,26.6]:220   
+##  (26.6,33]  : 50   
 ##                    
 ## </code></pre>
 <pre class="r"><code>head(stimuli)</code></pre>
 <pre><code>##   dist1 dist2 source strength instruction strength_binned
-## 1    22    15   dark       22       speed     (20.2,26.6]
-## 2    18    21   dark       18       speed     (13.8,20.2]
-## 3     8    32   dark        8       speed      (7.4,13.8]
-## 4     8    17   dark        8       speed      (7.4,13.8]
-## 5    18    31   dark       18       speed     (13.8,20.2]
-## 6    13    26   dark       13       speed      (7.4,13.8]</code></pre>
+## 1     4    16   dark        4       speed         [1,7.4]
+## 2     9    18  light       18       speed     (13.8,20.2]
+## 3    11    18  light       18       speed     (13.8,20.2]
+## 4    16    21  light       21       speed     (20.2,26.6]
+## 5    11    23  light       23       speed     (20.2,26.6]
+## 6     7    28   dark        7       speed         [1,7.4]</code></pre>
 <p>Also, we can first define the DM for 1 trial, where the lower boundary corresponds to “dark” and the upper boundary corresponds to “light”:</p>
 <pre class="r"><code># simulate data from simple DM
 random_dm &lt;- function(drift, threshold, ndt=.15, rel_sp=.5, noise_constant=1, dt=0.001, max_rt=10) {
@@ -610,28 +611,28 @@ random_dm_vd_vt &lt;- function(stimuli, drift_int, drift_coeff, threshold_speed,
 sim_data_vt &lt;- random_dm_vt(stimuli, drift = 0, threshold_speed = 1, threshold_accuracy = 2.5, ndt = .15)
 summary(sim_data_vt)</code></pre>
 <pre><code>##      dist1           dist2         source       strength     instruction 
-##  Min.   : 1.00   Min.   : 2.00   dark :501   13     : 69   accuracy:500  
-##  1st Qu.: 8.00   1st Qu.:16.00   light:499   16     : 61   speed   :500  
-##  Median :12.00   Median :20.00               20     : 53                 
-##  Mean   :12.43   Mean   :20.11               12     : 51                 
-##  3rd Qu.:16.00   3rd Qu.:24.00               10     : 49                 
-##  Max.   :32.00   Max.   :33.00               17     : 49                 
-##                                              (Other):668                 
+##  Min.   : 1.00   Min.   : 2.00   dark :494   16     : 64   accuracy:500  
+##  1st Qu.: 8.00   1st Qu.:16.00   light:506   13     : 63   speed   :500  
+##  Median :12.00   Median :20.00               15     : 60                 
+##  Mean   :12.53   Mean   :19.62               19     : 60                 
+##  3rd Qu.:16.00   3rd Qu.:24.00               18     : 52                 
+##  Max.   :32.00   Max.   :33.00               23     : 51                 
+##                                              (Other):650                 
 ##     strength_binned     drift     threshold         ndt         choice   
-##  [1,7.4]    :116    Min.   :0   Min.   :1.00   Min.   :0.15   dark :497  
-##  (7.4,13.8] :258    1st Qu.:0   1st Qu.:1.00   1st Qu.:0.15   light:503  
-##  (13.8,20.2]:346    Median :0   Median :1.75   Median :0.15              
-##  (20.2,26.6]:198    Mean   :0   Mean   :1.75   Mean   :0.15              
-##  (26.6,33]  : 82    3rd Qu.:0   3rd Qu.:2.50   3rd Qu.:0.15              
+##  [1,7.4]    :123    Min.   :0   Min.   :1.00   Min.   :0.15   dark :501  
+##  (7.4,13.8] :231    1st Qu.:0   1st Qu.:1.00   1st Qu.:0.15   light:499  
+##  (13.8,20.2]:376    Median :0   Median :1.75   Median :0.15              
+##  (20.2,26.6]:220    Mean   :0   Mean   :1.75   Mean   :0.15              
+##  (26.6,33]  : 50    3rd Qu.:0   3rd Qu.:2.50   3rd Qu.:0.15              
 ##                     Max.   :0   Max.   :2.50   Max.   :0.15              
 ##                                                                          
 ##        rt            accuracy    
-##  Min.   :0.1710   Min.   :0.000  
-##  1st Qu.:0.3518   1st Qu.:0.000  
-##  Median :0.6310   Median :0.000  
-##  Mean   :1.0888   Mean   :0.486  
-##  3rd Qu.:1.3415   3rd Qu.:1.000  
-##  Max.   :9.1330   Max.   :1.000  
+##  Min.   :0.1700   Min.   :0.000  
+##  1st Qu.:0.3640   1st Qu.:0.000  
+##  Median :0.6445   Median :1.000  
+##  Mean   :1.1173   Mean   :0.527  
+##  3rd Qu.:1.4033   3rd Qu.:1.000  
+##  Max.   :7.1840   Max.   :1.000  
 ## </code></pre>
 <pre class="r"><code># note that the drift-rate here is 0, because it does not depend in any way from the evidence...
 
@@ -647,27 +648,27 @@ ggplot(data = sim_data_vt, mapping = aes(x = factor(strength_binned), y = rt, co
 sim_data_vd &lt;- random_dm_vd(stimuli, drift_int = -1.75, drift_coeff = .1, threshold = 2, ndt = .15)
 head(sim_data_vd, 10)</code></pre>
 <pre><code>##    dist1 dist2 source strength instruction strength_binned drift threshold  ndt
-## 1     22    15   dark       22       speed     (20.2,26.6]  0.45         2 0.15
-## 2     18    21   dark       18       speed     (13.8,20.2]  0.05         2 0.15
-## 3      8    32   dark        8       speed      (7.4,13.8] -0.95         2 0.15
-## 4      8    17   dark        8       speed      (7.4,13.8] -0.95         2 0.15
-## 5     18    31   dark       18       speed     (13.8,20.2]  0.05         2 0.15
-## 6     13    26   dark       13       speed      (7.4,13.8] -0.45         2 0.15
-## 7     21    28  light       28       speed       (26.6,33]  1.05         2 0.15
-## 8      6    25  light       25       speed     (20.2,26.6]  0.75         2 0.15
-## 9      3    17   dark        3       speed         [1,7.4] -1.45         2 0.15
-## 10    19    13   dark       19       speed     (13.8,20.2]  0.15         2 0.15
+## 1      4    16   dark        4       speed         [1,7.4] -1.35         2 0.15
+## 2      9    18  light       18       speed     (13.8,20.2]  0.05         2 0.15
+## 3     11    18  light       18       speed     (13.8,20.2]  0.05         2 0.15
+## 4     16    21  light       21       speed     (20.2,26.6]  0.35         2 0.15
+## 5     11    23  light       23       speed     (20.2,26.6]  0.55         2 0.15
+## 6      7    28   dark        7       speed         [1,7.4] -1.05         2 0.15
+## 7     20    26  light       26       speed     (20.2,26.6]  0.85         2 0.15
+## 8     16    19   dark       16       speed     (13.8,20.2] -0.15         2 0.15
+## 9     19    30  light       30       speed       (26.6,33]  1.25         2 0.15
+## 10    18    20   dark       18       speed     (13.8,20.2]  0.05         2 0.15
 ##    choice    rt accuracy
-## 1   light 0.424        0
-## 2    dark 1.234        1
-## 3    dark 0.406        1
-## 4    dark 1.761        1
-## 5    dark 1.854        1
-## 6    dark 1.542        1
-## 7   light 0.795        1
-## 8   light 1.146        1
-## 9    dark 0.488        1
-## 10  light 1.476        0</code></pre>
+## 1    dark 1.620        1
+## 2   light 0.703        1
+## 3   light 1.599        1
+## 4   light 2.314        1
+## 5   light 1.937        1
+## 6    dark 1.123        1
+## 7   light 1.276        1
+## 8    dark 1.357        1
+## 9   light 0.695        1
+## 10  light 1.283        0</code></pre>
 <pre class="r"><code># note that there is no difference between speed and accuracy conditions because we did not vary the threshold...
 
 ggplot(data = sim_data_vd, mapping = aes(x = factor(strength_binned), y = rt, color=instruction)) +
@@ -683,27 +684,27 @@ sim_data_vd_vt &lt;- random_dm_vd_vt(stimuli, drift_int = -1.75, drift_coeff = .
                                   threshold_speed = .8, threshold_accuracy = 2.5, ndt = .15)
 head(sim_data_vd_vt, 10)</code></pre>
 <pre><code>##    dist1 dist2 source strength instruction strength_binned drift threshold  ndt
-## 1     22    15   dark       22       speed     (20.2,26.6]  0.45       0.8 0.15
-## 2     18    21   dark       18       speed     (13.8,20.2]  0.05       0.8 0.15
-## 3      8    32   dark        8       speed      (7.4,13.8] -0.95       0.8 0.15
-## 4      8    17   dark        8       speed      (7.4,13.8] -0.95       0.8 0.15
-## 5     18    31   dark       18       speed     (13.8,20.2]  0.05       0.8 0.15
-## 6     13    26   dark       13       speed      (7.4,13.8] -0.45       0.8 0.15
-## 7     21    28  light       28       speed       (26.6,33]  1.05       0.8 0.15
-## 8      6    25  light       25       speed     (20.2,26.6]  0.75       0.8 0.15
-## 9      3    17   dark        3       speed         [1,7.4] -1.45       0.8 0.15
-## 10    19    13   dark       19       speed     (13.8,20.2]  0.15       0.8 0.15
+## 1      4    16   dark        4       speed         [1,7.4] -1.35       0.8 0.15
+## 2      9    18  light       18       speed     (13.8,20.2]  0.05       0.8 0.15
+## 3     11    18  light       18       speed     (13.8,20.2]  0.05       0.8 0.15
+## 4     16    21  light       21       speed     (20.2,26.6]  0.35       0.8 0.15
+## 5     11    23  light       23       speed     (20.2,26.6]  0.55       0.8 0.15
+## 6      7    28   dark        7       speed         [1,7.4] -1.05       0.8 0.15
+## 7     20    26  light       26       speed     (20.2,26.6]  0.85       0.8 0.15
+## 8     16    19   dark       16       speed     (13.8,20.2] -0.15       0.8 0.15
+## 9     19    30  light       30       speed       (26.6,33]  1.25       0.8 0.15
+## 10    18    20   dark       18       speed     (13.8,20.2]  0.05       0.8 0.15
 ##    choice    rt accuracy
-## 1    dark 0.234        1
-## 2    dark 0.798        1
-## 3    dark 0.305        1
-## 4   light 0.279        0
-## 5   light 0.679        0
-## 6   light 0.273        0
-## 7    dark 0.489        0
-## 8   light 0.232        1
-## 9    dark 0.502        1
-## 10  light 0.392        0</code></pre>
+## 1    dark 0.366        1
+## 2   light 0.260        1
+## 3   light 0.308        1
+## 4   light 0.280        1
+## 5    dark 0.240        0
+## 6    dark 0.189        1
+## 7   light 0.338        1
+## 8   light 0.326        0
+## 9   light 0.366        1
+## 10   dark 0.265        1</code></pre>
 <pre class="r"><code>ggplot(data = sim_data_vd_vt, mapping = aes(x = factor(strength_binned), y = rt, color=instruction)) +
   stat_summary(fun = &quot;mean&quot;, geom=&quot;point&quot;) +
   stat_summary(fun.data = mean_cl_normal, geom = &quot;errorbar&quot;, size=.2, width=.9)</code></pre>
@@ -761,10 +762,207 @@ log_likelihood_vd_vt &lt;- function(par, data, ll_threshold=1e-10) {
   
   return(sum(log(density)))
 }</code></pre>
+<p><em>Possible answer</em>:</p>
+<pre class="r"><code># Likelihood of the model with only varying drift
+log_likelihood_vd &lt;- function(par, data, ll_threshold=1e-10) {
+  # par order: drift_int, drift_coeff, threshold, ndt
+  drift = par[1] + par[2]*as.numeric(data$strength)
+  threshold = rep(par[3], dim(data)[1])
+  ndt = rep(par[4], dim(data)[1])
+  
+  density &lt;- ddiffusion(rt=data$rt, response=data$response, a=threshold, v=drift, t0=ndt)
+  
+  density[density &lt;= ll_threshold] = ll_threshold # put a threhsold on very low likelihoods for computability
+  
+  return(sum(log(density)))
+}
+
+# Likelihood of the model with only varying threhsold
+log_likelihood_vt &lt;- function(par, data, ll_threshold=1e-10) {
+  # par order: drift, threshold_speed, threshold_accuracy, ndt
+  drift = rep(par[1], dim(data)[1])
+  threshold = rep(par[2], dim(data)[1])
+  threshold[data$instruction == &quot;accuracy&quot;] = par[3]
+  ndt = rep(par[4], dim(data)[1])
+  
+  density &lt;- ddiffusion(rt=data$rt, response=data$response, a=threshold, v=drift, t0=ndt)
+  
+  density[density &lt;= ll_threshold] = ll_threshold # put a threhsold on very low likelihoods for computability
+  
+  return(sum(log(density)))
+}
+
+# Likelihood of the full model
+log_likelihood_vd_vt &lt;- function(par, data, ll_threshold=1e-10) {
+  # par order: drift_int, drift_coeff, threshold_speed, threshold_accuracy, ndt
+  drift = par[1] + par[2]*as.numeric(data$strength)
+  threshold = rep(par[3], dim(data)[1])
+  threshold[data$instruction == &quot;accuracy&quot;] = par[4]
+  ndt = rep(par[5], dim(data)[1])
+  
+  density &lt;- ddiffusion(rt=data$rt, response=data$response, a=threshold, v=drift, t0=ndt)
+  
+  density[density &lt;= ll_threshold] = ll_threshold # put a threhsold on very low likelihoods for computability
+  
+  return(sum(log(density)))
+}</code></pre>
 <ul>
-<li><p><strong>B</strong> Recover the parameters of the simulated data in Day 2, only for the full model. Are the parameters recovered correctly?</p></li>
-<li><p><strong>C</strong> Fit the DM on the dataset, separately by subject. Save all the fitted parameters to the original dataset in separate columns, as well as the <code>fit$value</code>, which we will need for quantitative model comparison in Day 4.</p></li>
+<li><strong>B</strong> Recover the parameters of the simulated data in Day 2, only for the full model. Are the parameters recovered correctly?</li>
 </ul>
+<p><em>Possible answer</em>:</p>
+<pre class="r"><code>sim_data_vd_vt$response = &quot;lower&quot;
+sim_data_vd_vt[sim_data_vd_vt$choice == &quot;light&quot;, &quot;response&quot;] = &quot;upper&quot;
+head(sim_data_vd_vt)</code></pre>
+<pre><code>##   dist1 dist2 source strength instruction strength_binned drift threshold  ndt
+## 1     4    16   dark        4       speed         [1,7.4] -1.35       0.8 0.15
+## 2     9    18  light       18       speed     (13.8,20.2]  0.05       0.8 0.15
+## 3    11    18  light       18       speed     (13.8,20.2]  0.05       0.8 0.15
+## 4    16    21  light       21       speed     (20.2,26.6]  0.35       0.8 0.15
+## 5    11    23  light       23       speed     (20.2,26.6]  0.55       0.8 0.15
+## 6     7    28   dark        7       speed         [1,7.4] -1.05       0.8 0.15
+##   choice    rt accuracy response
+## 1   dark 0.366        1    lower
+## 2  light 0.260        1    upper
+## 3  light 0.308        1    upper
+## 4  light 0.280        1    upper
+## 5   dark 0.240        0    lower
+## 6   dark 0.189        1    lower</code></pre>
+<pre class="r"><code>starting_values = c(-2, .5, .5, 1, .2) # set some starting values
+
+print(log_likelihood_vd_vt(starting_values, data=sim_data_vd_vt)) # check that starting values are plausible</code></pre>
+<pre><code>## [1] -11383.71</code></pre>
+<pre class="r"><code>fit &lt;- nmkb(par = starting_values,
+            fn = function (x) log_likelihood_vd_vt(x, data=sim_data_vd_vt),
+            lower = c(-10, -10, 0, 0, 0),
+            upper = c(10, 10, 10, 10, 10),
+            control = list(maximize = TRUE))
+  
+print(fit$par) # print estimated parameters</code></pre>
+<pre><code>## [1] -1.8701236  0.1063202  0.8537675  2.5692527  0.1477967</code></pre>
+<ul>
+<li><strong>C</strong> Fit the DM on the dataset, separately by subject. Save all the fitted parameters to the original dataset in separate columns, as well as the <code>fit$value</code>, which we will need for quantitative model comparison in Day 4.</li>
+</ul>
+<p><em>Possible answer</em>:</p>
+<pre class="r"><code># Recoding for the likelihood
+rr98$choice = rr98$response
+rr98$response = as.character(rr98$response)
+rr98[rr98$choice == &quot;light&quot;, &quot;response&quot;] = &quot;upper&quot;
+rr98[rr98$choice == &quot;dark&quot;, &quot;response&quot;] = &quot;lower&quot;
+head(rr98)</code></pre>
+<pre><code>##   id session block trial instruction source strength response response_num
+## 1 jf       2     1    21    accuracy   dark        8    lower            1
+## 2 jf       2     1    22    accuracy   dark        7    lower            1
+## 3 jf       2     1    23    accuracy  light       19    upper            2
+## 4 jf       2     1    24    accuracy   dark       21    upper            2
+## 5 jf       2     1    25    accuracy  light       19    lower            1
+## 6 jf       2     1    26    accuracy   dark       10    lower            1
+##   correct    rt outlier accuracy strength_binned choice
+## 1    TRUE 0.801   FALSE        1      (6.4,12.8]   dark
+## 2    TRUE 0.680   FALSE        1      (6.4,12.8]   dark
+## 3    TRUE 0.694   FALSE        1     (12.8,19.2]  light
+## 4   FALSE 0.582   FALSE        0     (19.2,25.6]  light
+## 5   FALSE 0.925   FALSE        0     (12.8,19.2]   dark
+## 6    TRUE 0.605   FALSE        1      (6.4,12.8]   dark</code></pre>
+<pre class="r"><code># Fitting the model with only varying drift
+starting_values = c(-1, 1, 1, .1) # set some starting values
+
+for (pp in unique(rr98$id)) {
+  print(pp)
+  
+  data_pp = rr98[rr98$id == pp,]
+  
+  print(log_likelihood_vd(starting_values, data=data_pp)) # check that starting values are plausible
+  
+  fit &lt;- nmkb(par = starting_values,
+              fn = function (x) log_likelihood_vd(x, data=data_pp),
+              lower = c(-10, -10, 0, 0),
+              upper = c(10, 10, 10, 3),
+              control = list(maximize = TRUE))
+  
+  print(fit$par) # print estimated parameters
+  rr98[rr98$id == pp, &quot;vd_estim_drift_int&quot;] = fit$par[1]
+  rr98[rr98$id == pp, &quot;vd_estim_drift_coeff&quot;] = fit$par[2]
+  rr98[rr98$id == pp, &quot;vd_estim_threshold&quot;] = fit$par[3]
+  rr98[rr98$id == pp, &quot;vd_estim_ndt&quot;] = fit$par[4]
+  rr98[rr98$id == pp, &quot;vd_ll&quot;] = fit$value
+  rr98[rr98$id == pp, &quot;vd_BIC&quot;] = -2*fit$value + log(dim(data_pp)[1])*4
+}</code></pre>
+<pre><code>## [1] &quot;jf&quot;
+## [1] -148335.8
+## [1] -3.3915215  0.2141582  1.3449426  0.1689229
+## [1] &quot;kr&quot;
+## [1] -141107.6
+## [1] -4.0354657  0.2709920  1.3951626  0.1612836
+## [1] &quot;nh&quot;
+## [1] -150090.3
+## [1] -4.9853900  0.3181676  1.3646289  0.1904508</code></pre>
+<pre class="r"><code># Fitting the model with only varying thresholds
+starting_values = c(0, 1, 1, .1) # set some starting values
+
+for (pp in unique(rr98$id)) {
+  print(pp)
+  
+  data_pp = rr98[rr98$id == pp,]
+  
+  print(log_likelihood_vt(starting_values, data=data_pp)) # check that starting values are plausible
+  
+  fit &lt;- nmkb(par = starting_values,
+              fn = function (x) log_likelihood_vt(x, data=data_pp),
+              lower = c(-10, 0, 0, 0),
+              upper = c(10, 10, 10, 3),
+              control = list(maximize = TRUE))
+  
+  print(fit$par) # print estimated parameters
+  rr98[rr98$id == pp, &quot;vt_estim_drift&quot;] = fit$par[1]
+  rr98[rr98$id == pp, &quot;vt_estim_threshold_speed&quot;] = fit$par[2]
+  rr98[rr98$id == pp, &quot;vt_estim_threshold_accuracy&quot;] = fit$par[3]
+  rr98[rr98$id == pp, &quot;vt_estim_ndt&quot;] = fit$par[4]
+  rr98[rr98$id == pp, &quot;vt_ll&quot;] = fit$value
+  rr98[rr98$id == pp, &quot;vt_BIC&quot;] = -2*fit$value + log(dim(data_pp)[1])*4
+}</code></pre>
+<pre><code>## [1] &quot;jf&quot;
+## [1] -7555.47
+## [1] 0.05318701 0.74796190 1.56374596 0.19576029
+## [1] &quot;kr&quot;
+## [1] -7588.837
+## [1] 0.1628137 0.7049823 1.5438007 0.1956649
+## [1] &quot;nh&quot;
+## [1] -5886.646
+## [1] 0.0514629 0.8121707 1.3172762 0.2148553</code></pre>
+<pre class="r"><code># Fitting the full model
+starting_values = c(-1, 1, .5, 1, .1) # set some starting values
+
+for (pp in unique(rr98$id)) {
+  print(pp)
+  
+  data_pp = rr98[rr98$id == pp,]
+  
+  print(log_likelihood_vd_vt(starting_values, data=data_pp)) # check that starting values are plausible
+  
+  fit &lt;- nmkb(par = starting_values,
+              fn = function (x) log_likelihood_vd_vt(x, data=data_pp),
+              lower = c(-10, -10, 0, 0, 0),
+              upper = c(10, 10, 10, 10, 3),
+              control = list(maximize = TRUE))
+  
+  print(fit$par) # print estimated parameters
+  rr98[rr98$id == pp, &quot;vd_vt_estim_drift_int&quot;] = fit$par[1]
+  rr98[rr98$id == pp, &quot;vd_vt_estim_drift_coeff&quot;] = fit$par[2]
+  rr98[rr98$id == pp, &quot;vd_vt_estim_threshold_speed&quot;] = fit$par[3]
+  rr98[rr98$id == pp, &quot;vd_vt_estim_threshold_accuracy&quot;] = fit$par[4]
+  rr98[rr98$id == pp, &quot;vd_vt_estim_ndt&quot;] = fit$par[5]
+  rr98[rr98$id == pp, &quot;vd_vt_ll&quot;] = fit$value
+  rr98[rr98$id == pp, &quot;vd_vt_BIC&quot;] = -2*fit$value + log(dim(data_pp)[1])*5
+}</code></pre>
+<pre><code>## [1] &quot;jf&quot;
+## [1] -150529.1
+## [1] -3.9853991  0.2526818  0.8184609  1.9951662  0.1945865
+## [1] &quot;kr&quot;
+## [1] -144242.3
+## [1] -4.9192273  0.3288586  0.7884596  2.0337870  0.1942775
+## [1] &quot;nh&quot;
+## [1] -151784.3
+## [1] -5.4778267  0.3496392  0.9716096  1.7451990  0.2115727</code></pre>
 </div>
 </div>
 <div id="day-4.-assessing-model-fit-and-model-comparison" class="section level2">
@@ -772,9 +970,68 @@ log_likelihood_vd_vt &lt;- function(par, data, ll_threshold=1e-10) {
 <div id="exercises-3" class="section level4">
 <h4>Exercises:</h4>
 <ul>
-<li><p><strong>A</strong> Calculate the <a href="https://en.wikipedia.org/wiki/Bayesian_information_criterion">BIC</a> for each model and subject. For this, you will need the <code>fit$value</code> that you should have saved in Day 3. Based on the BIC, which model was best?</p></li>
-<li><p><strong>B</strong> Generate a new dataset in which, using the <code>random_dm_vd_vt</code>, you generate trials based on the parameters that we estimated for each subject. Now, plot side by side the model’s predictions with the real data, across instruction levels and strength bins. What do you observe? How would you improve this model?</p></li>
+<li><strong>A</strong> Calculate the <a href="https://en.wikipedia.org/wiki/Bayesian_information_criterion">BIC</a> for each model and subject. For this, you will need the <code>fit$value</code> that you should have saved in Day 3. Based on the BIC, which model was best?</li>
 </ul>
+<p><em>Possible answer</em>:</p>
+<pre class="r"><code># Compare the BICs
+BICs = distinct(select(rr98, id, vd_BIC, vt_BIC, vd_vt_BIC))
+BICs</code></pre>
+<pre><code>##   id    vd_BIC   vt_BIC vd_vt_BIC
+## 1 jf  3393.060 2689.774 -2755.939
+## 2 kr  2531.450 2380.451 -4466.037
+## 3 nh -2497.415 2053.907 -5244.654</code></pre>
+<pre class="r"><code># parameter estimates full (winning) model
+par_estim = distinct(select(rr98, 
+                            id, 
+                            vd_vt_estim_drift_int, vd_vt_estim_drift_coeff, 
+                            vd_vt_estim_threshold_speed, vd_vt_estim_threshold_accuracy,
+                            vd_vt_estim_ndt))
+par_estim</code></pre>
+<pre><code>##   id vd_vt_estim_drift_int vd_vt_estim_drift_coeff vd_vt_estim_threshold_speed
+## 1 jf             -3.985399               0.2526818                   0.8184609
+## 2 kr             -4.919227               0.3288586                   0.7884596
+## 3 nh             -5.477827               0.3496392                   0.9716096
+##   vd_vt_estim_threshold_accuracy vd_vt_estim_ndt
+## 1                       1.995166       0.1945865
+## 2                       2.033787       0.1942775
+## 3                       1.745199       0.2115727</code></pre>
+<ul>
+<li><strong>B</strong> Generate a new dataset in which, using the <code>random_dm_vd_vt</code>, you generate trials based on the parameters that we estimated for each subject. Now, plot side by side the model’s predictions with the real data, across instruction levels and strength bins. What do you observe? How would you improve this model?</li>
+</ul>
+<p><em>Possible answer</em>:</p>
+<pre class="r"><code>sim_data = data.frame()
+
+for (pp in unique(rr98$id)) {
+  print(pp)
+  data_pp = rr98[rr98$id == pp,]
+  estim_par = distinct(select(data_pp, 
+                              vd_vt_estim_drift_int, 
+                              vd_vt_estim_drift_coeff,
+                              vd_vt_estim_threshold_speed,
+                              vd_vt_estim_threshold_accuracy,
+                              vd_vt_estim_ndt))
+  
+  sim_pp = random_dm_vd_vt(data_pp, estim_par[,1], estim_par[,2], estim_par[,3], estim_par[,4], estim_par[,5])
+  sim_pp = sim_pp[,c(&quot;id&quot;, &quot;instruction&quot;, &quot;strength&quot;, &quot;choice&quot;, &quot;strength_binned&quot;, &quot;rt&quot;, &quot;accuracy&quot;)]
+  sim_data = rbind(sim_data, sim_pp)
+}</code></pre>
+<pre><code>## [1] &quot;jf&quot;
+## [1] &quot;kr&quot;
+## [1] &quot;nh&quot;</code></pre>
+<pre class="r"><code>sim_data$data = &quot;simulated&quot;
+rr98$data = &quot;real&quot;
+compare = rbind(sim_data, rr98[,c(&quot;id&quot;, &quot;instruction&quot;, &quot;strength&quot;, &quot;choice&quot;, &quot;strength_binned&quot;, &quot;rt&quot;, &quot;accuracy&quot;, &quot;data&quot;)])
+
+ggplot(data = compare, mapping = aes(x = factor(strength_binned), y = rt, color=instruction)) +
+  stat_summary(fun = &quot;mean&quot;, geom=&quot;point&quot;) +
+  stat_summary(fun.data = mean_cl_normal, geom = &quot;errorbar&quot;, size=.2, width=.9) + 
+  facet_grid(rows=vars(id), cols = vars(data))</code></pre>
+<p><img src="group_project_files/figure-html/unnamed-chunk-17-1.png" width="672" /></p>
+<pre class="r"><code>ggplot(data = compare, mapping = aes(x = factor(strength_binned), y = accuracy, color=instruction)) +
+  stat_summary(fun = &quot;mean&quot;, geom=&quot;point&quot;) +
+  stat_summary(fun.data = mean_cl_normal, geom = &quot;errorbar&quot;, size=.2, width=.9) + 
+  facet_grid(rows=vars(id), cols = vars(data))</code></pre>
+<p><img src="group_project_files/figure-html/unnamed-chunk-17-2.png" width="672" /></p>
 </div>
 </div>
 
